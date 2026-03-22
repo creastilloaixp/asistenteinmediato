@@ -1,0 +1,318 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OWNER
+  OPERATOR
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  QR
+  MERCADOPAGO
+  STRIPE
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum KioskStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+  TRIALING
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(OPERATOR)
+  storeId   String?
+  store     Store?   @relation(fields: [storeId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Store {
+  id           String        @id @default(uuid())
+  name         String
+  address      String?
+  phone        String?
+  apiKey       String        @unique @default(uuid())
+  active       Boolean       @default(true)
+  plan         Plan          @default(FREE)
+  maxKiosks    Int           @default(1)
+  maxProducts  Int           @default(50)
+  products     Product[]
+  kiosks       KioskDevice[]
+  transactions Transaction[]
+  users        User[]
+  subscription Subscription?
+  customers    Customer[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("stores")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  storeId            String             @unique
+  store              Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  plan               Plan
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  externalId         String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
+
+model Product {
+  id                String   @id @default(uuid())
+  storeId           String
+  store             Store    @relation(fields: [storeId], references: [id])
+  barcode           String?
+  name              String
+  price             Decimal  @db.Decimal(10, 2)
+  image             String?
+  stock             Int      @default(0)
+  lowStockThreshold Int      @default(5)
+  category          String?
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  transactionItems TransactionItem[]
+
+  @@unique([storeId, barcode])
+  @@map("products")
+}
+
+model Transaction {
+  id               String            @id @default(uuid())
+  storeId          String
+  store            Store             @relation(fields: [storeId], references: [id])
+  kioskId          String?
+  kiosk            KioskDevice?      @relation(fields: [kioskId], references: [id])
+  customerId       String?
+  customer         Customer?         @relation(fields: [customerId], references: [id])
+  items            TransactionItem[]
+  subtotal         Decimal           @db.Decimal(10, 2)
+  tax              Decimal           @default(0) @db.Decimal(10, 2)
+  total            Decimal           @db.Decimal(10, 2)
+  paymentMethod    PaymentMethod
+  status           TransactionStatus @default(PENDING)
+  paymentReference String?
+  cashReceived     Decimal?          @db.Decimal(10, 2)
+  changeGiven      Decimal?          @db.Decimal(10, 2)
+  completedAt      DateTime?
+  createdAt        DateTime          @default(now())
+
+  @@map("transactions")
+}
+
+model TransactionItem {
+  id            String      @id @default(uuid())
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+  productName   String
+  quantity      Int
+  unitPrice     Decimal     @db.Decimal(10, 2)
+  subtotal      Decimal     @db.Decimal(10, 2)
+
+  @@map("transaction_items")
+}
+
+model KioskDevice {
+  id            String        @id @default(uuid())
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id])
+  deviceName    String
+  deviceKey     String        @unique @default(uuid())
+  status        KioskStatus   @default(OFFLINE)
+  config        Json?
+  lastSeen      DateTime?
+  firstSeen     DateTime      @default(now())
+  transactions  Transaction[]
+  healthRecords KioskHealth[]
+  alerts        KioskAlert[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("kiosk_devices")
+}
+
+enum HealthStatus {
+  HEALTHY
+  WARNING
+  CRITICAL
+  UNKNOWN
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model KioskHealth {
+  id               String       @id @default(uuid())
+  kioskId          String
+  kiosk            KioskDevice  @relation(fields: [kioskId], references: [id], onDelete: Cascade)
+  cpuUsage         Float        @default(0)
+  memoryUsage      Float        @default(0)
+  temperature      Float?       @default(0)
+  batteryLevel     Float?       @default(100)
+  batteryCharging  Boolean      @default(false)
+  networkStatus    String       @default("online")
+  printerStatus    String       @default("ok")
+  cashDrawerStatus String       @default("ok")
+  ticketStock      Int?         @default(100)
+  paperStock       Int?         @default(100)
+  healthStatus     HealthStatus @default(UNKNOWN)
+  metadata         Json?
+  createdAt        DateTime     @default(now())
+
+  @@index([kioskId, createdAt])
+  @@map("kiosk_health")
+}
+
+model KioskAlert {
+  id             String        @id @default(uuid())
+  kioskId        String
+  kiosk          KioskDevice   @relation(fields: [kioskId], references: [id], onDelete: Cascade)
+  alertType      String
+  severity       AlertSeverity @default(INFO)
+  message        String
+  acknowledged   Boolean       @default(false)
+  acknowledgedAt DateTime?
+  acknowledgedBy String?
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+
+  @@index([kioskId, createdAt])
+  @@index([alertType, severity])
+  @@map("kiosk_alerts")
+}
+
+enum ActivityType {
+  USER_LOGIN
+  USER_LOGOUT
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  STORE_CREATED
+  STORE_UPDATED
+  PRODUCT_CREATED
+  PRODUCT_UPDATED
+  PRODUCT_DELETED
+  PRODUCT_LOW_STOCK
+  TRANSACTION_CREATED
+  TRANSACTION_COMPLETED
+  TRANSACTION_CANCELLED
+  TRANSACTION_REFUNDED
+  PAYMENT_RECEIVED
+  KIOSK_REGISTERED
+  KIOSK_ONLINE
+  KIOSK_OFFLINE
+  KIOSK_ALERT
+  SETTINGS_CHANGED
+  PLAN_CHANGED
+  EXPORT_DATA
+}
+
+model ActivityLog {
+  id         String       @id @default(uuid())
+  storeId    String
+  userId     String?
+  userName   String?
+  type       ActivityType
+  action     String
+  entityType String?
+  entityId   String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime     @default(now())
+
+  @@index([storeId, createdAt])
+  @@index([type])
+  @@index([userId])
+  @@map("activity_logs")
+}
+
+model Customer {
+  id            String        @id @default(uuid())
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id])
+  email         String?
+  phone         String?
+  name          String?
+  loyaltyPoints Int           @default(0)
+  totalSpent    Decimal       @default(0) @db.Decimal(10, 2)
+  visitCount    Int           @default(0)
+  lastVisit     DateTime?
+  transactions  Transaction[]
+  notes         String?
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([storeId, email])
+  @@unique([storeId, phone])
+  @@index([storeId])
+  @@map("customers")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  storeId   String
+  userId    String?
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId])
+  @@index([userId])
+  @@map("push_subscriptions")
+}
