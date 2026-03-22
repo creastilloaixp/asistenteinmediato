@@ -48,7 +48,6 @@ services:
     env: static
     name: autocobro-kiosk
     rootDir: autocobro-kiosk
-    plan: free
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
     headers:
@@ -77,7 +76,6 @@ services:
     env: static
     name: autocobro-admin
     rootDir: autocobro-admin
-    plan: free
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
     headers:
