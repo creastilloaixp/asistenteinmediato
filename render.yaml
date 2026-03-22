@@ -44,7 +44,7 @@ services:
   # ============================================
   # 2. Kiosk Frontend (React SPA + PWA)
   # ============================================
-  - type: static
+  - type: static_site
     name: autocobro-kiosk
     rootDir: autocobro-kiosk
     plan: free
@@ -72,7 +72,7 @@ services:
   # ============================================
   # 3. Admin Dashboard (React SPA)
   # ============================================
-  - type: static
+  - type: static_site
     name: autocobro-admin
     rootDir: autocobro-admin
     plan: free
