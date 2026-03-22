@@ -10,8 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { User, StoreData, Plan, Product, TopProduct, Transaction, ActivityLog, Customer, CustomerHistory, Tab } from '../types';
 import { RealtimeTransaction } from '../hooks/useRealtime';
+import { API_URL } from '../config';
 
-const API_URL = 'http://localhost:4000/api';
 
 export function ReportsPage({ token }: { token: string }) {
   const [dateRange, setDateRange] = useState('7')
@@ -28,10 +28,10 @@ export function ReportsPage({ token }: { token: string }) {
       dateFrom.setDate(dateFrom.getDate() - days)
       
       const [statsRes, productsRes] = await Promise.all([
-        fetch(`http://localhost:4000/api/transactions/stats`, {
+        fetch(`${API_URL}/transactions/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch(`http://localhost:4000/api/products/top-selling?limit=10`, {
+        fetch(`${API_URL}/products/top-selling?limit=10`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ])

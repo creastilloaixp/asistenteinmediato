@@ -1,0 +1,94 @@
+# ===========================================
+# AutoCobro - Render Blueprint (Infrastructure as Code)
+# ===========================================
+# Deploy: https://render.com/deploy → Conecta tu repo → Render detecta este archivo
+# Docs: https://docs.render.com/blueprint-spec
+
+services:
+  # ============================================
+  # 1. API Backend (Express + Prisma + WebSockets)
+  # ============================================
+  - type: web
+    name: autocobro-api
+    runtime: node
+    region: oregon
+    rootDir: autocobro-api
+    plan: free  # Cambiar a "starter" ($7/mes) para eliminar cold starts
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"  # Render usa puerto 10000 por defecto
+      - key: DATABASE_URL
+        sync: false  # Se configura manualmente (tu Supabase PostgreSQL)
+      - key: JWT_SECRET
+        generateValue: true  # Render genera un valor seguro automáticamente
+      - key: JWT_EXPIRES_IN
+        value: "7d"
+      - key: MERCADOPAGO_ACCESS_TOKEN
+        sync: false
+      - key: MERCADOPAGO_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_URLS
+        sync: false  # Se llena con las URLs de kiosk y admin una vez deployadas
+
+  # ============================================
+  # 2. Kiosk Frontend (React SPA + PWA)
+  # ============================================
+  - type: static
+    name: autocobro-kiosk
+    rootDir: autocobro-kiosk
+    plan: free
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false  # Se llena con la URL del API una vez deployada
+      - key: VITE_KIOSK_KEY
+        sync: false
+      - key: VITE_STRIPE_PUBLIC_KEY
+        sync: false
+
+  # ============================================
+  # 3. Admin Dashboard (React SPA)
+  # ============================================
+  - type: static
+    name: autocobro-admin
+    rootDir: autocobro-admin
+    plan: free
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false  # Se llena con la URL del API una vez deployada

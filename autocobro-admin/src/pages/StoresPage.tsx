@@ -11,8 +11,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { User, StoreData, Plan, Product, TopProduct, Transaction, ActivityLog, Customer, CustomerHistory, Tab } from '../types';
 import { RealtimeTransaction } from '../hooks/useRealtime';
+import { API_URL } from '../config';
 
-const API_URL = 'http://localhost:4000/api';
 
 export function StoresPage({ stores, onSwitch, onAddNew }: {
   stores: StoreData[]

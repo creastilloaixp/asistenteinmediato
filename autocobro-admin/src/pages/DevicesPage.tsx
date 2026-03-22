@@ -11,8 +11,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { User, StoreData, Plan, Product, TopProduct, Transaction, ActivityLog, Customer, CustomerHistory, Tab } from '../types';
 import { RealtimeTransaction } from '../hooks/useRealtime';
+import { API_URL } from '../config';
 
-const API_URL = 'http://localhost:4000/api';
 
 interface DevicesPageProps { storeId: string | null; token: string | null; }
 
@@ -22,8 +22,7 @@ export function DevicesPage({ storeId, token }: DevicesPageProps) {
   const [selectedKiosk, setSelectedKiosk] = useState<KioskHealthData | null>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loadingAlerts, setLoadingAlerts] = useState(false);
-  const API_URL = 'http://localhost:4000/api';
-
+  
   useEffect(() => {
     fetchKiosksHealth();
   }, [storeId, token]);

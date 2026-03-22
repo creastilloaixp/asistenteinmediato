@@ -27,8 +27,8 @@ import { DevicesPage } from './pages/DevicesPage'
 import { ActivityLogsPage } from './pages/ActivityLogsPage'
 import { MercadoPagoPage } from './pages/MercadoPagoPage'
 import { ReportsPage } from './pages/ReportsPage'
+import { API_URL } from './config';
 
-const API_URL = 'http://localhost:4000/api'
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))

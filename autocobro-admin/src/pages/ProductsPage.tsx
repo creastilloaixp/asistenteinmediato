@@ -11,9 +11,9 @@ import { toast } from 'sonner';
 import { User, StoreData, Plan, Product, TopProduct, Transaction, ActivityLog, Customer, CustomerHistory, Tab } from '../types';
 import { RealtimeTransaction } from '../hooks/useRealtime';
 
-const API_URL = 'http://localhost:4000/api';
 
 import { ProductModal } from '../components/ProductModal';
+import { API_URL } from '../config';
 export function ProductsPage({ products, onAdd, onEdit, onDelete }: { 
   products: Product[]; onAdd: () => void; onEdit: (p: Product) => void; onDelete: (id: string) => void 
 }) {

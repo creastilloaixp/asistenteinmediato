@@ -11,9 +11,9 @@ import { toast } from 'sonner';
 import { User, StoreData, Plan, Product, TopProduct, Transaction, ActivityLog, Customer, CustomerHistory, Tab } from '../types';
 import { RealtimeTransaction } from '../hooks/useRealtime';
 
-const API_URL = 'http://localhost:4000/api';
 
 import { TransactionDetailModal } from '../components/TransactionDetailModal';
+import { API_URL } from '../config';
 export function TransactionsPage({ transactions }: { transactions: Transaction[] }) {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')

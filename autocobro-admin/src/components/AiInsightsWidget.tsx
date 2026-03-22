@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Sparkles, MessageSquare, Send, X, Lightbulb, TrendingUp, TrendingDown, Package, AlertTriangle } from 'lucide-react'
+import { API_URL } from '../config';
 
-const API_URL = 'http://localhost:4000/api'
 
 interface AiInsightsProps {
   token: string
