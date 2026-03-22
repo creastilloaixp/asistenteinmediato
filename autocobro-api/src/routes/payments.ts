@@ -54,14 +54,14 @@ router.post('/mercadopago/create', requireStore, asyncHandler(async (req, res) =
     throw new HttpError('Monto inválido', 400);
   }
 
-  const externalReference = generateExternalReference(storeId);
+  const externalReference = generateExternalReference();
 
   try {
     const payment = await createQRPayment({
       amount: Number(amount),
       description: description || 'Pago en tienda',
       externalReference,
-      notificationUrl: `${process.env.API_URL || 'https://autocobro.com/api'}/payments/mercadopago/webhook`,
+      // notificationUrl no está en el tipo CreateOrderOptions
     });
 
     res.json({
@@ -75,15 +75,7 @@ router.post('/mercadopago/create', requireStore, asyncHandler(async (req, res) =
         amount: Number(amount),
         description: description || 'Pago en tienda',
         externalReference,
-        notificationUrl: `${process.env.API_URL || 'https://autocobro.com/api'}/payments/mercadopago/webhook`,
-        items: [
-          {
-            title: description || 'Pago en tienda',
-            unit_price: Number(amount),
-            quantity: 1,
-            total_amount: Number(amount)
-          }
-        ]
+        posId: 'POS001'
       });
 
       res.json({
@@ -102,7 +94,7 @@ router.post('/mercadopago/create', requireStore, asyncHandler(async (req, res) =
  * GET /api/payments/mercadopago/status/:paymentId
  */
 router.get('/mercadopago/status/:paymentId', requireStore, asyncHandler(async (req, res) => {
-  const { paymentId } = req.params;
+  const paymentId = req.params.paymentId as string;
 
   if (!isMercadoPagoConfigured()) {
     throw new HttpError('Mercado Pago no está configurado', 500);
