@@ -6,7 +6,7 @@ import { liveService } from '../services/geminiLiveService';
 import { toast } from 'sonner';
 
 export function ElisaAssistant() {
-  const { products, addToCart, removeFromCart } = useKioskStore();
+  const { products, addToCart, removeFromCart, setScreen } = useKioskStore();
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -35,6 +35,13 @@ export function ElisaAssistant() {
     };
 
     liveService.onAction = (action, productId) => {
+      if (action === 'checkout') {
+        setScreen('cart');
+        setTranscript('¡Claro! Vamos a pagar.');
+        toast.info("Redirigiendo al pago...");
+        return;
+      }
+
       const product = products.find(p => p.id === productId);
       if (product) {
         if (action === 'add') {
@@ -50,7 +57,7 @@ export function ElisaAssistant() {
     return () => {
       liveService.stop();
     };
-  }, [products, addToCart, removeFromCart]);
+  }, [products, addToCart, removeFromCart, setScreen]);
 
   const startListening = () => {
     setLoading(true);

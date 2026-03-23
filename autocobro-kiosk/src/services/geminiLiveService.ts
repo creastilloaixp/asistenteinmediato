@@ -7,7 +7,7 @@ export class GeminiLiveService {
   private playbackContext: AudioContext | null = null;
   
   public onTranscript?: (text: string) => void;
-  public onAction?: (action: 'add' | 'remove', productId: string) => void;
+  public onAction?: (action: 'add' | 'remove' | 'checkout', productId: string) => void;
   public onStateChange?: (state: 'idle' | 'listening' | 'speaking') => void;
   public onError?: (msg: string) => void;
 
@@ -34,28 +34,40 @@ export class GeminiLiveService {
               responseModalities: ["AUDIO"]
             },
             systemInstruction: {
-              parts: [{ text: "Eres Elisa, asistente virtual de AutoCobro. Responde brevemente (máximo 1 oración) con voz muy amable. Usa tus herramientas para agregar o quitar cosas del carrito si el usuario te lo pide." }]
+              parts: [{ text: "Eres Elisa, la asistente IA de este Kiosco de AutoCobro. \n" +
+                              "MULTIMODAL: Puedes ver al usuario por la cámara y escucharlo. \n" +
+                              "TAREAS: \n" +
+                              "1. Gestionar carrito (manage_cart). \n" +
+                              "2. Procesar pago si el usuario lo pide (checkout_cart). \n" +
+                              "3. Ser simpática: Comenta lo que ves (ej: '¡Qué buena playera!', 'Se nota que tienes hambre'). \n" +
+                              "Responde siempre BREVE y natural." }]
             },
             tools: [{
               functionDeclarations: [
                 {
-                  name: "manageCart",
-                  description: "Agrega o quita productos del carrito del usuario.",
+                  name: "manage_cart",
+                  description: "Agrega o quita productos del carrito de compras",
                   parameters: {
                     type: "object",
                     properties: {
-                      action: { type: "string", description: "add o remove" },
-                      productName: { type: "string", description: "El nombre aproximado del producto" }
+                      action: { type: "string", enum: ["add", "remove"], description: "Acción a realizar" },
+                      productName: { type: "string", description: "Nombre del producto" }
                     },
                     required: ["action", "productName"]
                   }
+                },
+                {
+                  name: "checkout_cart",
+                  description: "Inicia el proceso de pago/cobro de los productos actuales",
+                  parameters: { type: "object", properties: {} }
                 }
               ]
             }]
           }
         }));
-        // Iniciar captura real-time de micrófono
+        // Iniciar captura de audio y VISIÓN
         this.initAudioCapture();
+        this.initVisionCapture();
       };
 
       this.ws.onmessage = async (e) => {
@@ -85,7 +97,7 @@ export class GeminiLiveService {
           // 2. Manejar Herramientas (Carrito)
           if (msg.serverContent?.modelTurn?.parts?.[0]?.functionCall) {
             const call = msg.serverContent.modelTurn.parts[0].functionCall;
-            if (call.name === 'manageCart') {
+            if (call.name === 'manage_cart') {
                const requestedName = call.args.productName.toLowerCase();
                // Búsqueda del producto
                const found = products.find(p => p.name.toLowerCase().includes(requestedName));
@@ -104,7 +116,7 @@ export class GeminiLiveService {
                      role: "user",
                      parts: [{
                        functionResponse: {
-                         name: "manageCart",
+                         name: "manage_cart",
                          response: { result: found ? "success" : "not_found" }
                        }
                      }]
@@ -112,6 +124,22 @@ export class GeminiLiveService {
                    turnComplete: true
                  }
                }));
+            } else if (call.name === 'checkout_cart') {
+              this.onAction?.('checkout', '');
+              this.ws?.send(JSON.stringify({
+                clientContent: {
+                  turns: [{
+                    role: "user",
+                    parts: [{
+                      functionResponse: {
+                        name: "checkout_cart",
+                        response: { result: "success" }
+                      }
+                    }]
+                  }],
+                  turnComplete: true
+                }
+              }));
             }
           }
         } catch (err) {
@@ -253,12 +281,59 @@ export class GeminiLiveService {
      };
   }
 
+  private async initVisionCapture() {
+    try {
+      // Usar el mismo stream si es posible, o pedir video
+      const videoStream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 270 } });
+      this.videoElement = document.createElement('video');
+      this.videoElement.srcObject = videoStream;
+      this.videoElement.play();
+
+      this.canvasElement = document.createElement('canvas');
+      this.canvasElement.width = 480;
+      this.canvasElement.height = 270;
+      const ctx = this.canvasElement.getContext('2d');
+
+      // Enviar un frame cada 2 segundos para no saturar pero dar visión regular
+      this.visionInterval = setInterval(() => {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !ctx || !this.videoElement) return;
+
+        ctx.drawImage(this.videoElement, 0, 0, 480, 270);
+        // Calidad baja (0.5) para latencia ultrabaja
+        const base64Image = this.canvasElement.toDataURL('image/jpeg', 0.5).split(',')[1];
+
+        this.ws.send(JSON.stringify({
+          realtimeInput: {
+            mediaChunks: [{ mimeType: "image/jpeg", data: base64Image }]
+          }
+        }));
+      }, 2000);
+
+    } catch (e) {
+      console.warn('[GeminiLive] Vision disabled or NO camera found:', e);
+    }
+  }
+
   stop() {
     this.ws?.close();
     this.workletNode?.disconnect();
+    
+    // Detener audio
     this.stream?.getTracks().forEach(t => t.stop());
     this.audioContext?.close().catch(() => {});
     this.playbackContext?.close().catch(() => {});
+    
+    // Detener visión
+    if (this.visionInterval) clearInterval(this.visionInterval);
+    if (this.videoElement?.srcObject) {
+      (this.videoElement.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+    }
+    if (this.videoElement) {
+      this.videoElement.srcObject = null;
+      this.videoElement = null;
+    }
+    this.canvasElement = null;
+
     this.ws = null;
     this.stream = null;
     this.workletNode = null;
