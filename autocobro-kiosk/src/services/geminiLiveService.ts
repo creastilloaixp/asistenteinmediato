@@ -2,10 +2,10 @@ const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export class GeminiLiveService {
   private ws: WebSocket | null = null;
-  private audioContext: window.AudioContext | null = null;
+  private audioContext: AudioContext | null = null;
   private stream: MediaStream | null = null;
   private processor: ScriptProcessorNode | null = null;
-  private playbackContext: window.AudioContext | null = null;
+  private playbackContext: AudioContext | null = null;
   
   public onTranscript?: (text: string) => void;
   public onAction?: (action: 'add' | 'remove', productId: string) => void;
@@ -142,7 +142,7 @@ export class GeminiLiveService {
       }
       const base64 = window.btoa(binary);
       
-      this.ws.send(JSON.stringify({
+      this.ws?.send(JSON.stringify({
         realtimeInput: {
           mediaChunks: [{
             mimeType: "audio/pcm;rate=16000",
@@ -176,12 +176,12 @@ export class GeminiLiveService {
         float32[i] = int16[i] / 32768.0;
      }
      
-     const audioBuffer = this.playbackContext.createBuffer(1, float32.length, 24000);
+     const audioBuffer = this.playbackContext!.createBuffer(1, float32.length, 24000);
      audioBuffer.getChannelData(0).set(float32);
      
-     const source = this.playbackContext.createBufferSource();
+     const source = this.playbackContext!.createBufferSource();
      source.buffer = audioBuffer;
-     source.connect(this.playbackContext.destination);
+     source.connect(this.playbackContext!.destination);
      source.onended = () => {
          this.onStateChange?.('listening');
      };
