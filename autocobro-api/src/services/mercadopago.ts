@@ -92,7 +92,7 @@ function getAccessToken(): string {
  */
 export async function createInStoreQROrder(options: CreateOrderOptions): Promise<MercadoPagoQRPayment> {
   const accessToken = getAccessToken();
-  const { amount, description, externalReference, posId, userId = '0' } = options;
+  const { amount, description, externalReference, posId, userId = '3284388607' } = options;
 
   const body = {
     transaction_amount: Number(amount),
@@ -132,7 +132,7 @@ export async function createInStoreQROrder(options: CreateOrderOptions): Promise
 
   return {
     id: data.id,
-    status: data.status === 'pending' ? 'pending' : 'approved',
+    status: 'pending', // Siempre pendiente al crear, para que el kiosco muestre el QR
     qrCode: data.point_of_interaction?.transaction_data?.qr_code,
     qrCodeBase64: data.point_of_interaction?.transaction_data?.qr_code_base64,
     externalReference: data.external_reference,
@@ -205,7 +205,7 @@ export async function createOXXOPayment(options: CreateQROptions & { email?: str
 
   return {
     id: data.id.toString(),
-    status: data.status as 'pending' | 'approved',
+    status: 'pending', // Forzamos pendiente para mostrar el voucher
     qrCode: code, 
     qrCodeBase64: data.transaction_details?.payment_reference || code,
     externalReference: data.external_reference,
