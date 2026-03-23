@@ -19,6 +19,7 @@
  */
 
 import Stripe from 'stripe';
+import https from 'https';
 
 let stripeClient: Stripe | null = null;
 
@@ -33,6 +34,7 @@ function getStripeClient(): Stripe {
     stripeClient = new Stripe(secretKey, {
       apiVersion: '2025-02-24.acacia',
       typescript: true,
+      httpAgent: new https.Agent({ family: 4 }), // Force IPv4 exclusively for Stripe SDK outbound traffic
     });
   }
 
