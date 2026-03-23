@@ -13,9 +13,16 @@ export class GeminiLiveService {
 
   async start(products: any[]) {
     try {
+      if (!API_KEY) {
+        this.onError?.('Falta la llave API de Gemini (VITE_GEMINI_API_KEY). Revisa la configuracion de Render.');
+        console.error('[GeminiLive] VITE_GEMINI_API_KEY is missing or empty!');
+        return;
+      }
+
       this.onStateChange?.('listening');
       
       const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
+      console.log('[GeminiLive] Connecting with key length:', API_KEY.length);
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
@@ -120,6 +127,14 @@ export class GeminiLiveService {
 
       this.ws.onclose = (ev) => {
         console.warn('[GeminiLive] WebSocket closed. code:', ev.code, 'reason:', ev.reason);
+        // code 1008 = policy violation (bad API key). code 1006 = abnormal closure
+        if (ev.code === 1008) {
+          this.onError?.('API Key invalida o sin permisos para Gemini Live.');
+        } else if (ev.code !== 1000) {
+          // 1000 = normal close (user pressed stop), don't show error
+          this.onError?.(`Conexion cerrada inesperadamente (${ev.code}).`);
+        }
+        this.stop();
       };
 
     } catch (error) {
