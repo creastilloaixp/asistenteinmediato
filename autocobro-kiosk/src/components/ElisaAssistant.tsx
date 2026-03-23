@@ -1,100 +1,71 @@
-import { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Volume2, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Mic, MicOff, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useKioskStore } from '../stores/kioskStore';
-import { aiService } from '../services/aiService';
+import { liveService } from '../services/geminiLiveService';
 import { toast } from 'sonner';
 
 export function ElisaAssistant() {
-  const { products, addToCart, removeFromCart, setScreen } = useKioskStore();
+  const { products, addToCart, removeFromCart } = useKioskStore();
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [response, setResponse] = useState('');
   const [isVisible, setIsVisible] = useState(false);
-  
-  const recognitionRef = useRef<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Inicializar Reconocimiento de Voz
+  // Inicializar WebSocket y Live API
   useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.lang = 'es-MX';
-      recognitionRef.current.interimResults = false;
+    liveService.onStateChange = (state) => {
+      setIsListening(state === 'listening');
+      setIsSpeaking(state === 'speaking');
+      if (state === 'idle') {
+         setIsListening(false);
+         setIsSpeaking(false);
+      }
+    };
 
-      recognitionRef.current.onresult = (event: any) => {
-        const text = event.results[0][0].transcript;
-        setTranscript(text);
-        handleVoiceCommand(text);
-      };
+    liveService.onTranscript = (text) => {
+      setTranscript(text);
+    };
 
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
+    liveService.onError = (msg) => {
+      toast.error(msg);
+      setLoading(false);
+      setIsListening(false);
+    };
 
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-        toast.error('No pude escucharte bien. Intenta de nuevo.');
-      };
-    }
-  }, []);
+    liveService.onAction = (action, productId) => {
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        if (action === 'add') {
+          addToCart(product);
+          toast.success(`Añadido: ${product.name}`);
+        } else if (action === 'remove') {
+          removeFromCart(productId);
+          toast.info(`Eliminado: ${product.name}`);
+        }
+      }
+    };
+
+    return () => {
+      liveService.stop();
+    };
+  }, [products, addToCart, removeFromCart]);
 
   const startListening = () => {
-    if (recognitionRef.current) {
-      setTranscript('');
-      setResponse('');
-      setIsListening(true);
-      recognitionRef.current.start();
-    } else {
-      toast.error('Tu navegador no soporta reconocimiento de voz.');
-    }
+    setLoading(true);
+    setTranscript('Conectando con Elisa...');
+    liveService.start(products).then(() => {
+       setLoading(false);
+       setTranscript('');
+    });
   };
 
   const stopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    }
-  };
-
-  const speak = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'es-MX';
-    utterance.rate = 1;
-    utterance.pitch = 1.1; // Un poco más aguda para que suene amigable
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const handleVoiceCommand = async (text: string) => {
-    setLoading(true);
-    const result = await aiService.parseVoiceCommand(text, products);
     setLoading(false);
-    
-    setResponse(result.response);
-    speak(result.response);
-
-    if (result.action === 'add' && result.productId) {
-      const product = products.find(p => p.id === result.productId);
-      if (product) {
-        addToCart(product);
-        toast.success(`Añadido: ${product.name}`);
-      }
-    } else if (result.action === 'remove' && result.productId) {
-      removeFromCart(result.productId);
-      toast.info('Producto eliminado del carrito');
-    } else if (result.action === 'question') {
-      // Solo responde con la IA
-    }
+    liveService.stop();
+    setTranscript('Conexión cerrada.');
   };
-
-  const [loading, setLoading] = useState(false);
 
   return (
     <>
@@ -161,16 +132,6 @@ export function ElisaAssistant() {
                 )}
                 
                 {loading && <Loader2 className="w-4 h-4 animate-spin text-blue-500 self-center mt-2" />}
-                
-                {response && (
-                  <motion.p 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }}
-                    className="mt-3 text-blue-700 font-bold text-sm bg-blue-50 p-3 rounded-2xl border border-blue-100"
-                  >
-                    {response}
-                  </motion.p>
-                )}
               </div>
 
               {/* Controles */}
