@@ -52,12 +52,12 @@ export function HomeScreen() {
         </div>
 
         {/* 2. Textos de Bienvenida */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-6 md:mb-10">
           <motion.h1 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
-            className="text-[3.5rem] font-black text-emerald-400 mb-2 tracking-tight drop-shadow-md"
+            className="text-4xl md:text-[3.5rem] font-black text-emerald-400 mb-2 tracking-tight drop-shadow-md"
           >
             ¡BIENVENIDO!
           </motion.h1>
@@ -65,7 +65,7 @@ export function HomeScreen() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-2xl text-slate-200 font-medium tracking-wide"
+            className="text-lg md:text-2xl text-slate-200 font-medium tracking-wide leading-tight"
           >
             Toca para empezar a comprar
           </motion.p>
@@ -73,20 +73,20 @@ export function HomeScreen() {
 
         {/* 3. Tarjetas Principales (Blancas, sobrelapando el borde) */}
         {/* Usamos un margen inferior negativo o flex-grow para posicionar correctamente */}
-        <div className="grid grid-cols-2 gap-6 w-full mb-8">
+        <div className="flex flex-col md:grid md:grid-cols-2 gap-4 md:gap-6 w-full mb-6 md:mb-8 flex-1 min-h-0">
           <motion.button 
             onClick={() => setScreen('search')}
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, type: "spring" }}
             whileTap={{ scale: 0.95 }}
-            className="bg-white rounded-[2rem] p-8 flex flex-col items-center justify-center gap-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] border-2 border-transparent hover:border-emerald-100 transition-all group aspect-[4/3]"
+            className="bg-white rounded-[2rem] p-4 md:p-8 flex flex-row md:flex-col items-center justify-start md:justify-center gap-4 md:gap-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] border-2 border-transparent hover:border-emerald-100 transition-all group flex-1 md:aspect-[4/3]"
           >
-            <div className="bg-slate-50 p-6 rounded-3xl group-hover:bg-emerald-50 transition-colors">
-              <ScanLine size={64} className="text-slate-800 group-hover:text-emerald-600 transition-colors" strokeWidth={1.5} />
+            <div className="bg-slate-50 p-4 md:p-6 rounded-3xl group-hover:bg-emerald-50 transition-colors shrink-0">
+              <ScanLine className="w-8 h-8 md:w-16 md:h-16 text-slate-800 group-hover:text-emerald-600 transition-colors" strokeWidth={1.5} />
             </div>
-            <span className="text-slate-800 font-black text-2xl text-center leading-tight">
-              ESCANEADO<br/>RÁPIDO
+            <span className="text-slate-800 font-black text-lg md:text-2xl text-left md:text-center leading-tight">
+              ESCANEADO<br className="hidden md:block"/> RÁPIDO
             </span>
           </motion.button>
 
@@ -96,13 +96,13 @@ export function HomeScreen() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, type: "spring" }}
             whileTap={{ scale: 0.95 }}
-            className="bg-white rounded-[2rem] p-8 flex flex-col items-center justify-center gap-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] border-2 border-transparent hover:border-emerald-100 transition-all group aspect-[4/3]"
+            className="bg-white rounded-[2rem] p-4 md:p-8 flex flex-row md:flex-col items-center justify-start md:justify-center gap-4 md:gap-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] border-2 border-transparent hover:border-emerald-100 transition-all group flex-1 md:aspect-[4/3]"
           >
-            <div className="bg-slate-50 p-6 rounded-3xl group-hover:bg-emerald-50 transition-colors">
-              <Search size={64} className="text-slate-800 group-hover:text-emerald-600 transition-colors" strokeWidth={1.5} />
+            <div className="bg-slate-50 p-4 md:p-6 rounded-3xl group-hover:bg-emerald-50 transition-colors shrink-0">
+              <Search className="w-8 h-8 md:w-16 md:h-16 text-slate-800 group-hover:text-emerald-600 transition-colors" strokeWidth={1.5} />
             </div>
-            <span className="text-slate-800 font-black text-2xl text-center leading-tight">
-              BUSCAR<br/>PRODUCTOS
+            <span className="text-slate-800 font-black text-lg md:text-2xl text-left md:text-center leading-tight">
+              BUSCAR<br className="hidden md:block"/> PRODUCTOS
             </span>
           </motion.button>
         </div>
@@ -112,7 +112,7 @@ export function HomeScreen() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="grid grid-cols-4 gap-4 w-full mb-6"
+          className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 w-full mb-6 shrink-0"
         >
           {topCategories.map((catName, index) => {
             const Icon = categoryIcons[index % categoryIcons.length];
@@ -121,9 +121,9 @@ export function HomeScreen() {
                 key={catName}
                 onClick={() => setScreen('search')}
                 whileTap={{ scale: 0.92 }}
-                className="bg-emerald-500 rounded-3xl aspect-square flex flex-col items-center justify-center gap-3 p-3 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 transition-colors border border-emerald-400/50"
+                className="bg-emerald-500 rounded-2xl md:rounded-3xl aspect-[16/9] md:aspect-square flex flex-row md:flex-col items-center justify-center gap-2 md:gap-3 p-2 md:p-3 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 transition-colors border border-emerald-400/50"
               >
-                <Icon size={38} className="text-white" strokeWidth={2} />
+                <Icon className="w-5 h-5 md:w-[38px] md:h-[38px] text-white shrink-0" strokeWidth={2} />
                 <span className="text-white font-black text-[10px] sm:text-xs text-center tracking-wide line-clamp-1">{catName.toUpperCase()}</span>
               </motion.button>
             );
@@ -137,9 +137,9 @@ export function HomeScreen() {
                 key={`empty-${i}`}
                 onClick={() => setScreen('search')}
                 whileTap={{ scale: 0.92 }}
-                className="bg-emerald-500 rounded-3xl aspect-square flex flex-col items-center justify-center gap-3 p-3 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 transition-colors border border-emerald-400/50"
+                className="bg-emerald-500 rounded-2xl md:rounded-3xl aspect-[16/9] md:aspect-square flex flex-row md:flex-col items-center justify-center gap-2 md:gap-3 p-2 md:p-3 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 transition-colors border border-emerald-400/50"
               >
-                <Icon size={38} className="text-white" strokeWidth={2} />
+                <Icon className="w-5 h-5 md:w-[38px] md:h-[38px] text-white shrink-0" strokeWidth={2} />
                 <span className="text-white font-black text-xs text-center tracking-wide">VER TODOS</span>
               </motion.button>
              )
@@ -157,53 +157,53 @@ export function HomeScreen() {
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4, type: "spring", stiffness: 150 }}
-          className="mt-auto w-full bg-emerald-500 rounded-[2.5rem] p-2 flex shadow-[0_15px_30px_-10px_rgba(16,185,129,0.5)] border border-emerald-400/50 overflow-hidden"
+          className="mt-auto shrink-0 w-full bg-emerald-500 rounded-[2rem] md:rounded-[2.5rem] p-1 md:p-2 flex shadow-[0_15px_30px_-10px_rgba(16,185,129,0.5)] border border-emerald-400/50 overflow-hidden"
         >
           {/* Botón Carrito */}
           <motion.button 
             onClick={() => setScreen('cart')}
-            className="flex-1 flex flex-col items-center justify-center py-5 relative group"
+            className="flex-1 flex flex-col items-center justify-center py-3 md:py-5 relative group"
             whileTap={{ scale: 0.95, backgroundColor: 'rgba(255,255,255,0.1)' }}
           >
-            <div className="relative mb-2">
-              <ShoppingCart size={32} className="text-white group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+            <div className="relative mb-1 md:mb-2">
+              <ShoppingCart className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" strokeWidth={2.5} />
               <AnimatePresence>
                 {cartCount > 0 && (
                   <motion.span 
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     exit={{ scale: 0 }}
-                    className="absolute -top-3 -right-4 bg-slate-900 text-white text-xs font-black w-7 h-7 flex items-center justify-center rounded-full border-2 border-emerald-500 shadow-md"
+                    className="absolute -top-2 -right-3 md:-top-3 md:-right-4 bg-slate-900 text-white text-[10px] md:text-xs font-black w-5 h-5 md:w-7 md:h-7 flex items-center justify-center rounded-full border-2 border-emerald-500 shadow-md"
                   >
                     {cartCount}
                   </motion.span>
                 )}
               </AnimatePresence>
             </div>
-            <span className="text-white font-black text-sm tracking-wide">CARRITO ({cartCount})</span>
+            <span className="text-white font-black text-[10px] md:text-sm tracking-wide">CARRITO ({cartCount})</span>
             {/* Divider */}
-            <div className="absolute right-0 top-[20%] bottom-[20%] w-[2px] bg-white/20 rounded-full"></div>
+            <div className="absolute right-0 top-[20%] bottom-[20%] w-[1px] md:w-[2px] bg-white/20 rounded-full"></div>
           </motion.button>
           
           {/* Botón Ayuda */}
           <motion.button 
-            className="flex-1 flex flex-col items-center justify-center py-5 relative group"
+            className="flex-1 flex flex-col items-center justify-center py-3 md:py-5 relative group"
             whileTap={{ scale: 0.95, backgroundColor: 'rgba(255,255,255,0.1)' }}
           >
-            <HelpCircle size={32} className="text-white mb-2 group-hover:scale-110 transition-transform" strokeWidth={2.5} />
-            <span className="text-white font-black text-sm max-w-[100px] text-center leading-tight tracking-wide">SOLICITAR AYUDA</span>
+            <HelpCircle className="w-6 h-6 md:w-8 md:h-8 text-white mb-1 md:mb-2 group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+            <span className="text-white font-black text-[10px] md:text-sm max-w-[80px] md:max-w-[100px] text-center leading-[1.1] md:leading-tight tracking-wide">SOLICITAR AYUDA</span>
             {/* Divider */}
-            <div className="absolute right-0 top-[20%] bottom-[20%] w-[2px] bg-white/20 rounded-full"></div>
+            <div className="absolute right-0 top-[20%] bottom-[20%] w-[1px] md:w-[2px] bg-white/20 rounded-full"></div>
           </motion.button>
           
           {/* Botón Pagar */}
           <motion.button 
             onClick={() => cartCount > 0 ? setScreen('payment') : null}
-            className={`flex-1 flex flex-col items-center justify-center py-5 group ${cartCount === 0 ? 'opacity-60' : ''}`}
+            className={`flex-1 flex flex-col items-center justify-center py-3 md:py-5 group ${cartCount === 0 ? 'opacity-60' : ''}`}
             whileTap={cartCount > 0 ? { scale: 0.95, backgroundColor: 'rgba(255,255,255,0.1)' } : {}}
           >
-            <CreditCard size={32} className="text-white mb-2 group-hover:scale-110 transition-transform" strokeWidth={2.5} />
-            <span className="text-white font-black text-sm tracking-wide">PAGAR</span>
+            <CreditCard className="w-6 h-6 md:w-8 md:h-8 text-white mb-1 md:mb-2 group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+            <span className="text-white font-black text-[10px] md:text-sm tracking-wide">PAGAR</span>
           </motion.button>
         </motion.div>
 
