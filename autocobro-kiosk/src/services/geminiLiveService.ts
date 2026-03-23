@@ -23,27 +23,30 @@ export class GeminiLiveService {
 
       this.onStateChange?.('listening');
       
-      // 1. Iniciar captura de audio y VISIÓN inmediatamente (más rápido para el usuario)
-      this.initAudioCapture();
-      this.initVisionCapture();
+      // 1. Pedir permisos de una vez para evitar bloqueos
+      this.stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: true, 
+        video: { width: 480, height: 270 } 
+      });
 
+      // 2. Conectar WebSocket con el modelo ESTABLE de Gemini 2.0
       const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
-        console.log('[GeminiLive] Connected to Gemini. Sending setup...');
+        console.log('[GeminiLive] Connected. Sending setup...');
         this.ws?.send(JSON.stringify({
           setup: {
-            model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
+            model: "models/gemini-2.0-flash-exp",
             generationConfig: { responseModalities: ["AUDIO"] },
             systemInstruction: {
-              parts: [{ text: "Eres Elisa, la asistente IA del Kiosco. Puedes VER (cámara) y ESCUCHAR. Sé proactiva y simpática comentando lo que ves. Tareas: manage_cart y checkout_cart." }]
+              parts: [{ text: "Eres Elisa, la asistente IA del Kiosco. Puedes VER (cámara) y ESCUCHAR. Sé proactiva y simpática comentando lo que ves del usuario. Tareas: manage_cart y checkout_cart." }]
             },
             tools: [{
               functionDeclarations: [
                 {
                   name: "manage_cart",
-                  description: "Gestiona el carrito",
+                  description: "Agrega o quita productos del carrito",
                   parameters: {
                     type: "object",
                     properties: {
@@ -55,40 +58,37 @@ export class GeminiLiveService {
                 },
                 {
                   name: "checkout_cart",
-                  description: "Cobrar productos",
+                  description: "Inicia el pago",
                   parameters: { type: "object", properties: {} }
                 }
               ]
             }]
           }
         }));
+
+        this.initAudioCapture();
+        this.initVisionCapture();
       };
 
       this.ws.onmessage = async (e) => {
         let data = e.data;
         if (data instanceof Blob) data = await data.text();
-        
         try {
           const msg = JSON.parse(data);
           
-          // Manejar Audio de respuesta
           if (msg.serverContent?.modelTurn?.parts) {
             for (const part of msg.serverContent.modelTurn.parts) {
               if (part.inlineData?.data) this.playAudio(part.inlineData.data);
+              if (part.text) this.onTranscript?.(part.text);
             }
           }
 
-          // Manejar Herramientas
           if (msg.serverContent?.modelTurn?.parts?.[0]?.functionCall) {
             const call = msg.serverContent.modelTurn.parts[0].functionCall;
-            
             if (call.name === 'manage_cart') {
               const requestedName = call.args.productName.toLowerCase();
               const found = products.find(p => p.name.toLowerCase().includes(requestedName));
-              if (found) {
-                this.onAction?.(call.args.action, found.id);
-                this.onTranscript?.(`${call.args.action === 'add' ? 'Añadí' : 'Quité'}: ${found.name}`);
-              }
+              if (found) this.onAction?.(call.args.action, found.id);
               this.sendToolResponse("manage_cart", { result: found ? "success" : "not_found" });
             } else if (call.name === 'checkout_cart') {
               this.onAction?.('checkout', '');
@@ -98,14 +98,12 @@ export class GeminiLiveService {
         } catch (err) { console.error("WS error", err); }
       };
 
-      this.ws.onerror = () => this.onError?.('Error de conexión con Google.');
-      this.ws.onclose = (ev) => {
-        if (ev.code === 1008) this.onError?.('API Key inválida.');
-        this.stop();
-      };
+      this.ws.onerror = () => this.onError?.('Error de conexión con Gemini.');
+      this.ws.onclose = () => this.stop();
 
-    } catch (error) {
-       this.onError?.('Error al iniciar el servicio.');
+    } catch (error: any) {
+       console.error(error);
+       this.onError?.('Error al iniciar: ' + error.message);
        this.stop();
     }
   }
@@ -113,10 +111,7 @@ export class GeminiLiveService {
   private sendToolResponse(name: string, response: any) {
     this.ws?.send(JSON.stringify({
       clientContent: {
-        turns: [{
-          role: "user",
-          parts: [{ functionResponse: { name, response } }]
-        }],
+        turns: [{ role: "user", parts: [{ functionResponse: { name, response } }] }],
         turnComplete: true
       }
     }));
@@ -124,50 +119,52 @@ export class GeminiLiveService {
 
   private workletNode: AudioWorkletNode | null = null;
   private async initAudioCapture() {
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      this.audioContext = new AudioContext({ sampleRate: 16000 });
-      const source = this.audioContext.createMediaStreamSource(this.stream);
-      
-      const workletCode = `
-        class PCMProcessor extends AudioWorkletProcessor {
-          constructor() { super(); this.buffer = new Int16Array(512); this.cursor = 0; }
-          process(inputs) {
-            const channelData = inputs[0]?.[0];
-            if (channelData) {
-              for (let i = 0; i < channelData.length; i++) {
-                this.buffer[this.cursor++] = Math.min(1, Math.max(-1, channelData[i])) * 0x7FFF;
-                if (this.cursor >= 512) { this.port.postMessage(this.buffer); this.buffer = new Int16Array(512); this.cursor = 0; }
-              }
+    if (!this.stream) return;
+    this.audioContext = new AudioContext({ sampleRate: 16000 });
+    const source = this.audioContext.createMediaStreamSource(this.stream);
+    
+    const workletCode = `
+      class PCMProcessor extends AudioWorkletProcessor {
+        constructor() { super(); this.buffer = new Int16Array(512); this.cursor = 0; }
+        process(inputs) {
+          const channelData = inputs[0]?.[0];
+          if (channelData) {
+            for (let i = 0; i < channelData.length; i++) {
+              this.buffer[this.cursor++] = Math.min(1, Math.max(-1, channelData[i])) * 0x7FFF;
+              if (this.cursor >= 512) { this.port.postMessage(this.buffer); this.buffer = new Int16Array(512); this.cursor = 0; }
             }
-            return true;
           }
+          return true;
         }
-        registerProcessor('pcm-processor', PCMProcessor);
-      `;
-      
-      const url = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
-      await this.audioContext.audioWorklet.addModule(url);
-      this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor');
-      this.workletNode.port.onmessage = (e) => {
-        if (this.ws?.readyState !== WebSocket.OPEN) return;
-        const base64 = window.btoa(String.fromCharCode(...new Uint8Array(e.data.buffer)));
-        this.ws.send(JSON.stringify({
-          realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: base64 }] }
-        }));
-      };
-      source.connect(this.workletNode);
-    } catch(e) { console.error("Audio error", e); }
+      }
+      registerProcessor('pcm-processor', PCMProcessor);
+    `;
+    
+    const url = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
+    await this.audioContext.audioWorklet.addModule(url);
+    this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor');
+    this.workletNode.port.onmessage = (e) => {
+      if (this.ws?.readyState !== WebSocket.OPEN) return;
+      const base64 = window.btoa(String.fromCharCode(...new Uint8Array(e.data.buffer)));
+      this.ws.send(JSON.stringify({
+        realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: base64 }] }
+      }));
+    };
+    source.connect(this.workletNode);
   }
 
   private nextPlayTime: number = 0;
   private playAudio(base64: string) {
      this.onStateChange?.('speaking');
-     const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+     const binary = atob(base64);
+     const bytes = new Uint8Array(binary.length);
+     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+     
      if (!this.playbackContext || this.playbackContext.state === 'closed') {
          this.playbackContext = new AudioContext({ sampleRate: 24000 });
          this.nextPlayTime = this.playbackContext.currentTime;
      }
+
      const int16 = new Int16Array(bytes.buffer);
      const float32 = new Float32Array(int16.length);
      for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768.0;
@@ -181,38 +178,33 @@ export class GeminiLiveService {
      source.start(this.nextPlayTime);
      this.nextPlayTime += buffer.duration;
      source.onended = () => {
-         if (this.playbackContext && this.playbackContext.currentTime >= this.nextPlayTime - 0.1) this.onStateChange?.('listening');
+       if (this.playbackContext && this.playbackContext.currentTime >= this.nextPlayTime - 0.1) this.onStateChange?.('listening');
      };
   }
 
-  private async initVisionCapture() {
-    try {
-      const videoStream = await navigator.mediaDevices.getUserMedia({ video: { width: 480, height: 270 } });
-      this.videoElement = document.getElementById('elisa-vision-preview') as HTMLVideoElement || document.createElement('video');
-      this.videoElement.srcObject = videoStream;
-      this.videoElement.play();
-      this.canvasElement = document.createElement('canvas');
-      this.canvasElement.width = 480; this.canvasElement.height = 270;
-      const ctx = this.canvasElement.getContext('2d');
+  private initVisionCapture() {
+    if (!this.stream) return;
+    this.videoElement = document.getElementById('elisa-vision-preview') as HTMLVideoElement || document.createElement('video');
+    this.videoElement.srcObject = this.stream;
+    this.videoElement.play();
+    this.canvasElement = document.createElement('canvas');
+    this.canvasElement.width = 480; this.canvasElement.height = 270;
+    const ctx = this.canvasElement.getContext('2d');
 
-      this.visionInterval = setInterval(() => {
-        if (this.ws?.readyState === WebSocket.OPEN && ctx && this.videoElement) {
-          ctx.drawImage(this.videoElement, 0, 0, 480, 270);
-          const base64 = this.canvasElement!.toDataURL('image/jpeg', 0.5).split(',')[1];
-          this.ws.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: "image/jpeg", data: base64 }] } }));
-        }
-      }, 2000);
-    } catch (e: any) {
-      this.onError?.('Error de cámara: ' + e.name);
-    }
+    this.visionInterval = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN && ctx && this.videoElement) {
+        ctx.drawImage(this.videoElement, 0, 0, 480, 270);
+        const base64 = this.canvasElement!.toDataURL('image/jpeg', 0.5).split(',')[1];
+        this.ws.send(JSON.stringify({ realtimeInput: { mediaChunks: [{ mimeType: "image/jpeg", data: base64 }] } }));
+      }
+    }, 2000);
   }
 
   stop() {
     this.ws?.close();
-    this.workletNode?.disconnect();
-    this.stream?.getTracks().forEach(t => t.stop());
+    if (this.workletNode) this.workletNode.disconnect();
+    if (this.stream) this.stream.getTracks().forEach(t => t.stop());
     if (this.visionInterval) clearInterval(this.visionInterval);
-    if (this.videoElement?.srcObject) (this.videoElement.srcObject as MediaStream).getTracks().forEach(t => t.stop());
     this.ws = null; this.onStateChange?.('idle');
   }
 }
