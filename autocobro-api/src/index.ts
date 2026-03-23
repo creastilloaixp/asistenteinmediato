@@ -27,19 +27,19 @@ const server = createServer(app);
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 4000;
 
+// Configuration - Better CORS support
+const envOrigins = process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(',').map(u => u.trim()) : [];
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3001',
   'http://localhost:3000',
   'http://localhost:4000',
+  ...envOrigins
 ];
-if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL);
-}
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: true,
   credentials: true,
 }));
 
@@ -76,30 +76,28 @@ app.use('/api/activity-logs', authMiddleware, activityLogRoutes);
 
 app.use(errorHandler);
 
-setupWebSocket(app, server);
-initializePushNotifications();
-
-async function main() {
-  try {
-    await prisma.$connect();
-    console.log('✅ Database connected');
-    
-    server.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📚 API: http://localhost:${PORT}/api`);
-      console.log(`🔌 WebSocket: ws://localhost:${PORT}/ws`);
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
-  }
+// Only initialize WS and Listen if not on Vercel
+if (!process.env.VERCEL) {
+  setupWebSocket(app, server);
+  initializePushNotifications();
+  
+  const main = async () => {
+    try {
+      await prisma.$connect();
+      console.log('✅ Database connected');
+      server.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+      });
+    } catch (error) {
+      console.error('❌ Failed to start server:', error);
+    }
+  };
+  main();
+} else {
+  // On Vercel, we just want to ensure prisma is ready
+  // Note: WebSockets will NOT work here
+  console.log('🌩️ Running on Vercel environment');
 }
 
-main();
-
-process.on('SIGINT', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
-
+export default app;
 export { prisma };
