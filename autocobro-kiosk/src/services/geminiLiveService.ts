@@ -59,13 +59,18 @@ export class GeminiLiveService {
         
         try {
           const msg = JSON.parse(data);
+          console.log('[GeminiLive] Server msg keys:', Object.keys(msg));
+          if (msg.serverContent) console.log('[GeminiLive] serverContent:', JSON.stringify(msg.serverContent).slice(0, 300));
 
           // 1. Manejar el AUDIO y TEXTO de respuesta
           if (msg.serverContent?.modelTurn?.parts) {
             for (const part of msg.serverContent.modelTurn.parts) {
               if (part.inlineData && part.inlineData.data) {
+                console.log('[GeminiLive] Got audio chunk, mimeType:', part.inlineData.mimeType, 'length:', part.inlineData.data.length);
                 // Reproducir el Base64 que manda Gemini (Voz natural 2.5)
                 this.playAudio(part.inlineData.data);
+              } else if (part.text) {
+                console.log('[GeminiLive] Got text (no audio):', part.text);
               }
             }
           }
@@ -107,9 +112,14 @@ export class GeminiLiveService {
         }
       };
 
-      this.ws.onerror = () => {
+      this.ws.onerror = (ev) => {
+        console.error('[GeminiLive] WebSocket error:', ev);
         this.onError?.('Error en la conexión con los servidores de Google.');
         this.stop();
+      };
+
+      this.ws.onclose = (ev) => {
+        console.warn('[GeminiLive] WebSocket closed. code:', ev.code, 'reason:', ev.reason);
       };
 
     } catch (error) {
@@ -127,18 +137,28 @@ export class GeminiLiveService {
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     const source = this.audioContext.createMediaStreamSource(this.stream);
     
-    // Crear el AudioWorklet inline para procesar el audio sin afectar el hilo principal (Evita warnings de deprecación)
+    // Crear el AudioWorklet inline encolando audios para no saturar el WebSocket (Bloqueos "Silenciosos")
     const workletCode = `
       class PCMProcessor extends AudioWorkletProcessor {
+        constructor() {
+          super();
+          this.buffer = new Int16Array(2048);
+          this.cursor = 0;
+        }
+
         process(inputs) {
           const input = inputs[0];
           if (input && input.length > 0) {
             const channelData = input[0];
-            const pcm16 = new Int16Array(channelData.length);
             for (let i = 0; i < channelData.length; i++) {
-              pcm16[i] = Math.min(1, Math.max(-1, channelData[i])) * 0x7FFF;
+              this.buffer[this.cursor++] = Math.min(1, Math.max(-1, channelData[i])) * 0x7FFF;
+              if (this.cursor >= this.buffer.length) {
+                // Enviar bloque completo de 2048 muestras
+                this.port.postMessage(this.buffer);
+                this.buffer = new Int16Array(2048);
+                this.cursor = 0;
+              }
             }
-            this.port.postMessage(pcm16);
           }
           return true;
         }
@@ -152,6 +172,7 @@ export class GeminiLiveService {
     await this.audioContext.audioWorklet.addModule(url);
     this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor');
     
+    let chunksSent = 0;
     this.workletNode.port.onmessage = (e) => {
       if (this.ws?.readyState !== WebSocket.OPEN) return;
 
@@ -172,6 +193,11 @@ export class GeminiLiveService {
           }]
         }
       }));
+      
+      chunksSent++;
+      if (chunksSent % 10 === 0) {
+        console.log(`[GeminiLive] Sent ${chunksSent} audio chunks to server...`);
+      }
     };
 
     source.connect(this.workletNode);
