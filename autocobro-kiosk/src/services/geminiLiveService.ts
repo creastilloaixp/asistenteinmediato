@@ -178,6 +178,8 @@ export class GeminiLiveService {
     this.workletNode.connect(this.audioContext.destination);
   }
 
+  private nextPlayTime: number = 0;
+
   // --- REPRODUCCIÓN DE LA VOZ DE GEMINI (24kHz PCM) --- //
   private playAudio(base64: string) {
      this.onStateChange?.('speaking');
@@ -190,6 +192,7 @@ export class GeminiLiveService {
      
      if (!this.playbackContext || this.playbackContext.state === 'closed') {
          this.playbackContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+         this.nextPlayTime = this.playbackContext.currentTime;
      } else if (this.playbackContext.state === 'suspended') {
          this.playbackContext.resume();
      }
@@ -206,10 +209,20 @@ export class GeminiLiveService {
      const source = this.playbackContext!.createBufferSource();
      source.buffer = audioBuffer;
      source.connect(this.playbackContext!.destination);
+     
+     // Scheduling to avoid overlapping (Stutter/Robotic overlap fix)
+     if (this.nextPlayTime < this.playbackContext!.currentTime) {
+         this.nextPlayTime = this.playbackContext!.currentTime;
+     }
+     source.start(this.nextPlayTime);
+     this.nextPlayTime += audioBuffer.duration;
+
      source.onended = () => {
-         this.onStateChange?.('listening');
+         // Solo vuelve a "listening" si ya no hay más audio encolado por reproducir
+         if (this.playbackContext && this.playbackContext.currentTime >= this.nextPlayTime - 0.1) {
+             this.onStateChange?.('listening');
+         }
      };
-     source.start(0);
   }
 
   stop() {
@@ -223,6 +236,7 @@ export class GeminiLiveService {
     this.workletNode = null;
     this.playbackContext = null;
     this.audioContext = null;
+    this.nextPlayTime = 0;
     this.onStateChange?.('idle');
   }
 }
