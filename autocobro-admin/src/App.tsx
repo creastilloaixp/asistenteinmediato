@@ -488,34 +488,58 @@ function App() {
     )
   }
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   if (!token) {
     return <LoginPage onLogin={handleLogin} />
   }
 
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'transactions', label: 'Ventas', icon: ShoppingCart },
+    { id: 'mercadopago', label: 'Mercado Pago', icon: CreditCard },
+    { id: 'reports', label: 'Reportes', icon: BarChart3 },
+    { id: 'products', label: 'Productos', icon: Package },
+    { id: 'logs', label: 'Actividad', icon: Activity },
+    { id: 'devices', label: 'Dispositivos', icon: Monitor },
+    { id: 'customers', label: 'Clientes', icon: Users },
+    { id: 'stores', label: 'Tiendas', icon: Store },
+    { id: 'pricing', label: 'Planes', icon: CreditCard },
+    { id: 'settings', label: 'Configuración', icon: Settings },
+  ] as const;
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-sm">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Navigation Bar */}
+      <nav className="bg-white border-b shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold text-blue-600">AutoCobro</h1>
-              {userStores.length > 1 && (
-                <button 
-                  onClick={() => setShowStoreSelector(true)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  <Store className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-700 font-medium">{currentStore?.name}</span>
-                  <ChevronDown className="w-4 h-4 text-gray-500" />
-                </button>
-              )}
-              {currentStore && (
-                <PlanBadge plan={currentStore.plan} />
-              )}
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-2 md:gap-4">
+              <button 
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-2 -ml-2 text-gray-500 md:hidden hover:bg-gray-100 rounded-lg"
+              >
+                <LayoutDashboard className="w-6 h-6" />
+              </button>
+              <h1 className="text-lg md:text-xl font-bold text-blue-600">AutoCobro</h1>
+              <div className="hidden md:flex items-center gap-3">
+                {userStores.length > 1 && (
+                  <button 
+                    onClick={() => setShowStoreSelector(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    <Store className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-700 font-medium">{currentStore?.name}</span>
+                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                  </button>
+                )}
+                {currentStore && <PlanBadge plan={currentStore.plan} />}
+              </div>
             </div>
-            <div className="flex items-center gap-4">
-              <span className="text-gray-600">{user?.name}</span>
-              <button onClick={handleLogout} className="text-gray-400 hover:text-red-500">
+            
+            <div className="flex items-center gap-2 md:gap-4">
+              <span className="hidden sm:inline text-sm font-medium text-gray-700">{user?.name}</span>
+              <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
@@ -523,46 +547,78 @@ function App() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex gap-6">
-          <aside className="w-64 flex-shrink-0">
-            <nav className="bg-white rounded-lg shadow p-4 space-y-1">
-              {[
-                { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                { id: 'transactions', label: 'Ventas', icon: ShoppingCart },
-                { id: 'mercadopago', label: 'Mercado Pago', icon: CreditCard },
-                { id: 'reports', label: 'Reportes', icon: BarChart3 },
-                { id: 'products', label: 'Productos', icon: Package },
-                { id: 'logs', label: 'Actividad', icon: Activity },
-                { id: 'devices', label: 'Dispositivos', icon: Monitor },
-                { id: 'customers', label: 'Clientes', icon: Users },
-                { id: 'stores', label: 'Tiendas', icon: Store },
-                { id: 'pricing', label: 'Planes', icon: CreditCard },
-                { id: 'settings', label: 'Configuración', icon: Settings },
-              ].map(({ id, label, icon: Icon }) => (
+      <div className="flex-1 max-w-7xl mx-auto w-full px-0 md:px-4 py-0 md:py-6">
+        <div className="flex flex-col md:flex-row gap-0 md:gap-6 h-full">
+          {/* Mobile Sidebar Overlay */}
+          <AnimatePresence>
+            {isMobileMenuOpen && (
+              <>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 md:hidden"
+                />
+                <motion.aside 
+                  initial={{ x: '-100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '-100%' }}
+                  className="fixed inset-y-0 left-0 w-72 bg-white z-[60] shadow-2xl md:hidden overflow-y-auto"
+                >
+                  <div className="p-5 border-b flex justify-between items-center">
+                    <span className="font-bold text-blue-600 text-lg">Menú Principal</span>
+                    <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-gray-50 rounded-lg"><X /></button>
+                  </div>
+                  <nav className="p-4 space-y-1">
+                    {menuItems.map(({ id, label, icon: Icon }) => (
+                      <button
+                        key={id}
+                        onClick={() => {
+                          setActiveTab(id as Tab);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all ${
+                          activeTab === id ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Icon className="w-6 h-6" />
+                        <span className="font-bold">{label}</span>
+                      </button>
+                    ))}
+                  </nav>
+                </motion.aside>
+              </>
+            )}
+          </AnimatePresence>
+
+          {/* Desktop Sidebar */}
+          <aside className="hidden md:block w-64 flex-shrink-0">
+            <nav className="bg-white rounded-[1.5rem] shadow-sm border border-gray-100 p-3 space-y-1 sticky top-24">
+              {menuItems.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id as Tab)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === id ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    activeTab === id ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
-                  {label}
+                  <span className="font-medium text-sm">{label}</span>
                 </button>
               ))}
             </nav>
           </aside>
 
-          <main className="flex-1 relative">
+          <main className="flex-1 p-4 md:p-0 min-w-0">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.02 }}
                 transition={{ duration: 0.2 }}
-                className="w-full"
+                className="w-full h-full"
               >
                 {activeTab === 'dashboard' && currentStore && (
                   <Dashboard 
