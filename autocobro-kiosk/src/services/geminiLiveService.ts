@@ -171,7 +171,6 @@ export class GeminiLiveService {
     await this.audioContext.audioWorklet.addModule(url);
     this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor');
     
-    let chunksSent = 0;
     this.workletNode.port.onmessage = (e) => {
       if (this.ws?.readyState !== WebSocket.OPEN) return;
 
