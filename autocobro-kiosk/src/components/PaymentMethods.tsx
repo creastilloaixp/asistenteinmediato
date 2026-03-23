@@ -136,6 +136,12 @@ export function PaymentMethods({ total, onBack, onPaymentComplete, onError }: Pa
 
       setPaymentData(result);
       setPaymentStatus('pending');
+      
+      // Validación CRÍTICA: Si no hay datos visuales (QR, Barcode, etc), no podemos proceder
+      if (!result.qrCode && !result.qrCodeBase64 && !result.clientSecret) {
+        throw new Error('El proveedor de pago no entregó el código. Revisa tus credenciales.');
+      }
+      
       onPaymentComplete(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';

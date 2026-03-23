@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PaymentMethod, TransactionStatus } from '@prisma/client';
 import { asyncHandler, HttpError } from '../middleware/errorHandler.js';
-import { createOXXOPayment, isMercadoPagoConfigured } from '../services/mercadopago.js';
+import { createOXXOPayment, createInStoreQROrder, isMercadoPagoConfigured } from '../services/mercadopago.js';
 import { createPaymentIntent, isStripeConfigured } from '../services/stripe.js';
 import { createActivityLog } from '../services/activityLog.js';
 import { wsService } from '../services/websocket.js';
@@ -256,12 +256,24 @@ router.post('/mercadopago/create', asyncHandler(async (req, res) => {
 
   const transactionId = `MP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  const payment = await createOXXOPayment({
-    amount: Number(amount),
-    description: description || 'Pago AutoCobro',
-    externalReference: transactionId,
-    notificationUrl: `https://autocobro-api-z368.onrender.com/api/payments/mercadopago/webhook`,
-  });
+  let payment;
+  try {
+    payment = await createInStoreQROrder({
+      amount: Number(amount),
+      description: description || 'Pago AutoCobro',
+      externalReference: transactionId,
+      posId: `KIOSK-${kioskId.slice(0, 8)}`,
+    });
+  } catch (qrError) {
+    console.log('[MercadoPago] QR order failed, trying OXXO:', qrError);
+    payment = await createOXXOPayment({
+      amount: Number(amount),
+      description: description || 'Pago AutoCobro',
+      externalReference: transactionId,
+      email: 'pagos@autocobro.com', // Correo para produccion
+      notificationUrl: `https://autocobro-api-z368.onrender.com/api/payments/mercadopago/webhook`,
+    });
+  }
 
   const transaction = await prisma.transaction.create({
     data: {
