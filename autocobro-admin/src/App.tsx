@@ -38,6 +38,7 @@ function App() {
   const [currentStore, setCurrentStore] = useState<StoreData | null>(null)
   const [userStores, setUserStores] = useState<StoreData[]>([])
   const [showStoreSelector, setShowStoreSelector] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   
   const [products, setProducts] = useState<Product[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -488,7 +489,6 @@ function App() {
     )
   }
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   if (!token) {
     return <LoginPage onLogin={handleLogin} />

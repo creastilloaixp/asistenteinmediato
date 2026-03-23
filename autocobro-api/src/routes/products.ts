@@ -81,6 +81,62 @@ router.get('/barcode/:barcode', asyncHandler(async (req, res) => {
   res.json({ success: true, data: { product } });
 }));
 
+router.get('/top-selling', requireStore, asyncHandler(async (req, res) => {
+  const prisma = req.prisma;
+  const { limit = 10 } = req.query;
+  const storeId = req.user!.storeId!;
+
+  const topProducts = await prisma.transactionItem.groupBy({
+    by: ['productId', 'productName'],
+    where: {
+      transaction: {
+        storeId,
+        status: 'COMPLETED',
+      },
+    },
+    _sum: {
+      quantity: true,
+      subtotal: true,
+    },
+    orderBy: {
+      _sum: {
+        quantity: 'desc',
+      },
+    },
+    take: Number(limit),
+  });
+
+  res.json({
+    success: true,
+    data: {
+      topProducts: topProducts.map(p => ({
+        productId: p.productId,
+        productName: p.productName,
+        totalQuantity: p._sum.quantity || 0,
+        totalSales: p._sum.subtotal || 0,
+      })),
+    },
+  });
+}));
+
+router.get('/low-stock', requireStore, asyncHandler(async (req, res) => {
+  const prisma = req.prisma;
+  const storeId = req.user!.storeId!;
+
+  const lowStockProducts = await prisma.$queryRaw<any[]>`
+    SELECT * FROM products 
+    WHERE "storeId" = ${storeId} 
+    AND active = true 
+    AND stock <= "lowStockThreshold"
+    ORDER BY stock ASC
+  `;
+
+  res.json({
+    success: true,
+    data: { products: lowStockProducts },
+  });
+}));
+
 router.get('/:id', requireStore, asyncHandler(async (req, res) => {
   const prisma = req.prisma;
   const { id } = req.params;
@@ -172,43 +228,6 @@ router.delete('/:id', requireStore, asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Producto eliminado' });
 }));
 
-router.get('/top-selling', requireStore, asyncHandler(async (req, res) => {
-  const prisma = req.prisma;
-  const { limit = 10 } = req.query;
-  const storeId = req.user!.storeId!;
-
-  const topProducts = await prisma.transactionItem.groupBy({
-    by: ['productId', 'productName'],
-    where: {
-      transaction: {
-        storeId,
-        status: 'COMPLETED',
-      },
-    },
-    _sum: {
-      quantity: true,
-      subtotal: true,
-    },
-    orderBy: {
-      _sum: {
-        quantity: 'desc',
-      },
-    },
-    take: Number(limit),
-  });
-
-  res.json({
-    success: true,
-    data: {
-      topProducts: topProducts.map(p => ({
-        productId: p.productId,
-        productName: p.productName,
-        totalQuantity: p._sum.quantity || 0,
-        totalSales: p._sum.subtotal || 0,
-      })),
-    },
-  });
-}));
 
 router.post('/import', requireStore, asyncHandler(async (req, res) => {
   const prisma = req.prisma;
@@ -244,23 +263,6 @@ router.post('/import', requireStore, asyncHandler(async (req, res) => {
   });
 }));
 
-router.get('/low-stock', requireStore, asyncHandler(async (req, res) => {
-  const prisma = req.prisma;
-  const storeId = req.user!.storeId!;
-
-  const lowStockProducts = await prisma.$queryRaw<any[]>`
-    SELECT * FROM products 
-    WHERE "storeId" = ${storeId} 
-    AND active = true 
-    AND stock <= "lowStockThreshold"
-    ORDER BY stock ASC
-  `;
-
-  res.json({
-    success: true,
-    data: { products: lowStockProducts },
-  });
-}));
 
 router.post('/:id/restock', requireStore, asyncHandler(async (req, res) => {
   const prisma = req.prisma;
