@@ -142,7 +142,7 @@ export class GeminiLiveService {
       class PCMProcessor extends AudioWorkletProcessor {
         constructor() {
           super();
-          this.buffer = new Int16Array(2048);
+          this.buffer = new Int16Array(512);
           this.cursor = 0;
         }
 
@@ -153,9 +153,8 @@ export class GeminiLiveService {
             for (let i = 0; i < channelData.length; i++) {
               this.buffer[this.cursor++] = Math.min(1, Math.max(-1, channelData[i])) * 0x7FFF;
               if (this.cursor >= this.buffer.length) {
-                // Enviar bloque completo de 2048 muestras
                 this.port.postMessage(this.buffer);
-                this.buffer = new Int16Array(2048);
+                this.buffer = new Int16Array(512);
                 this.cursor = 0;
               }
             }
@@ -178,26 +177,15 @@ export class GeminiLiveService {
 
       const pcm16 = e.data;
       const buffer = new Uint8Array(pcm16.buffer);
-      
       let binary = '';
-      for (let i = 0; i < buffer.byteLength; i++) {
-          binary += String.fromCharCode(buffer[i]);
-      }
+      for (let i = 0; i < buffer.byteLength; i++) binary += String.fromCharCode(buffer[i]);
       const base64 = window.btoa(binary);
       
       this.ws?.send(JSON.stringify({
         realtimeInput: {
-          mediaChunks: [{
-            mimeType: "audio/pcm;rate=16000",
-            data: base64
-          }]
+          mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: base64 }]
         }
       }));
-      
-      chunksSent++;
-      if (chunksSent % 10 === 0) {
-        console.log(`[GeminiLive] Sent ${chunksSent} audio chunks to server...`);
-      }
     };
 
     source.connect(this.workletNode);
