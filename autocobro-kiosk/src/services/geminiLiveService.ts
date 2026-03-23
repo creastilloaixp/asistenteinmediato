@@ -4,7 +4,6 @@ export class GeminiLiveService {
   private ws: WebSocket | null = null;
   private audioContext: AudioContext | null = null;
   private stream: MediaStream | null = null;
-  private processor: ScriptProcessorNode | null = null;
   private playbackContext: AudioContext | null = null;
   
   public onTranscript?: (text: string) => void;
@@ -117,25 +116,45 @@ export class GeminiLiveService {
     }
   }
 
+  private workletNode: AudioWorkletNode | null = null;
+
   // --- CAPTURA DE AUDIO DEL KIOSCO (16kHz PCM para que Gemini lo entienda) --- //
   private async initAudioCapture() {
     this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
     const source = this.audioContext.createMediaStreamSource(this.stream);
     
-    this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+    // Crear el AudioWorklet inline para procesar el audio sin afectar el hilo principal (Evita warnings de deprecación)
+    const workletCode = `
+      class PCMProcessor extends AudioWorkletProcessor {
+        process(inputs) {
+          const input = inputs[0];
+          if (input && input.length > 0) {
+            const channelData = input[0];
+            const pcm16 = new Int16Array(channelData.length);
+            for (let i = 0; i < channelData.length; i++) {
+              pcm16[i] = Math.min(1, Math.max(-1, channelData[i])) * 0x7FFF;
+            }
+            this.port.postMessage(pcm16);
+          }
+          return true;
+        }
+      }
+      registerProcessor('pcm-processor', PCMProcessor);
+    `;
     
-    this.processor.onaudioprocess = (e) => {
+    const blob = new Blob([workletCode], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+    
+    await this.audioContext.audioWorklet.addModule(url);
+    this.workletNode = new AudioWorkletNode(this.audioContext, 'pcm-processor');
+    
+    this.workletNode.port.onmessage = (e) => {
       if (this.ws?.readyState !== WebSocket.OPEN) return;
 
-      const inputData = e.inputBuffer.getChannelData(0);
-      const pcm16 = new Int16Array(inputData.length);
-      for (let i = 0; i < inputData.length; i++) {
-        pcm16[i] = Math.min(1, Math.max(-1, inputData[i])) * 0x7FFF;
-      }
-      
+      const pcm16 = e.data;
       const buffer = new Uint8Array(pcm16.buffer);
-      // Convertir a base64 (Forma óptima validada en JS puro)
+      
       let binary = '';
       for (let i = 0; i < buffer.byteLength; i++) {
           binary += String.fromCharCode(buffer[i]);
@@ -152,8 +171,8 @@ export class GeminiLiveService {
       }));
     };
 
-    source.connect(this.processor);
-    this.processor.connect(this.audioContext.destination);
+    source.connect(this.workletNode);
+    this.workletNode.connect(this.audioContext.destination);
   }
 
   // --- REPRODUCCIÓN DE LA VOZ DE GEMINI (24kHz PCM) --- //
@@ -190,12 +209,13 @@ export class GeminiLiveService {
 
   stop() {
     this.ws?.close();
-    this.processor?.disconnect();
+    this.workletNode?.disconnect();
     this.stream?.getTracks().forEach(t => t.stop());
     this.audioContext?.close().catch(() => {});
     this.playbackContext?.close().catch(() => {});
     this.ws = null;
     this.stream = null;
+    this.workletNode = null;
     this.onStateChange?.('idle');
   }
 }
