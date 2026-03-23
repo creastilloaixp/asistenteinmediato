@@ -6,15 +6,17 @@ import { toast } from 'sonner'
 import { offlineQueue } from '../services/offlineQueue'
 import { useOfflineStatus } from '../hooks/useOfflineStatus'
 import { PaymentMethods, PaymentData } from '../components/PaymentMethods'
+import { CustomerLoyaltyModal } from '../components/CustomerLoyaltyModal'
 
 type PaymentMethod = 'CASH' | 'CARD' | 'QR' | 'MERCADOPAGO' | 'STRIPE'
 
 export function PaymentScreen() {
-  const { cart, setScreen, setTransaction, deviceKey } = useKioskStore()
+  const { cart, setScreen, setTransaction, deviceKey, customer } = useKioskStore()
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
   const [cashReceived, setCashReceived] = useState('')
   const [processing, setProcessing] = useState(false)
   const [showDigitalPayment, setShowDigitalPayment] = useState(false)
+  const [showLoyaltyModal, setShowLoyaltyModal] = useState(false)
   const { isOnline } = useOfflineStatus()
 
   const subtotal = cart.reduce((sum, item) => sum + (Number(item.product.price) * item.quantity), 0)
@@ -220,45 +222,79 @@ export function PaymentScreen() {
         </div>
       </motion.div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 no-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 no-scrollbar pb-56 md:pb-32">
         {!isOnline && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-orange-50 border-2 border-orange-200 rounded-[2rem] p-6 flex items-start gap-4 shadow-sm"
+            className="bg-orange-50 border-2 border-orange-200 rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-6 flex items-start gap-4 shadow-sm"
           >
-            <WifiOff className="w-8 h-8 text-orange-500 flex-shrink-0 mt-1" />
+            <WifiOff className="w-6 h-6 md:w-8 md:h-8 text-orange-500 flex-shrink-0 mt-1" />
             <div>
-              <h3 className="font-bold text-xl text-orange-800">Kiosco sin conexión</h3>
-              <p className="text-orange-600 mt-1">Solo se aceptan pagos en efectivo. Las transacciones se guardarán localmente.</p>
-              <div className="mt-3 flex items-center gap-2 text-sm text-orange-700 bg-orange-100 px-3 py-1.5 rounded-lg w-max font-medium">
+              <h3 className="font-bold text-lg md:text-xl text-orange-800">Kiosco sin conexión</h3>
+              <p className="text-orange-600 mt-1 text-sm md:text-base">Solo se aceptan pagos en efectivo. Las transacciones se guardarán localmente.</p>
+              <div className="mt-3 flex items-center gap-2 text-xs md:text-sm text-orange-700 bg-orange-100 px-3 py-1.5 rounded-lg w-max font-medium">
                 <Clock className="w-4 h-4" /> {offlineQueue.getPendingTransactions().length} pagos en espera
               </div>
             </div>
           </motion.div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <motion.div 
+          onClick={() => setShowLoyaltyModal(true)}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileTap={{ scale: 0.98 }}
+          className={`rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0 border-2 cursor-pointer shadow-sm transition-all ${
+            customer 
+              ? 'bg-amber-50 border-amber-200 hover:bg-amber-100' 
+              : 'bg-white border-dashed border-gray-300 hover:border-amber-400 hover:bg-amber-50/50'
+          }`}
+        >
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center ${customer ? 'bg-amber-200 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+              <span className="text-xl md:text-2xl">{customer ? '⭐' : '🎁'}</span>
+            </div>
+            <div>
+              {customer ? (
+                <>
+                  <h3 className="font-black text-lg md:text-xl text-amber-900">{customer.name.split(' ')[0]}</h3>
+                  <p className="text-amber-700 font-medium text-xs md:text-sm">Puntos actuales: {customer.loyaltyPoints}</p>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-bold text-lg md:text-xl text-slate-800">Programa de Lealtad</h3>
+                  <p className="text-slate-500 font-medium text-xs md:text-sm">Toca para sumar puntos en esta compra</p>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="bg-white rounded-xl px-4 py-2 font-bold text-xs md:text-sm shadow-sm text-slate-700 border border-slate-100 w-full md:w-auto text-center">
+            {customer ? 'Cambiar' : 'Añadir'}
+          </div>
+        </motion.div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <motion.button
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
             onClick={() => setSelectedMethod('CASH')}
-            className={`p-6 rounded-[2rem] flex flex-col items-center gap-4 transition-all border-2 shadow-sm ${
+            className={`p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] flex flex-row md:flex-col items-center gap-4 md:gap-4 transition-all border-2 shadow-sm ${
               selectedMethod === 'CASH'
                 ? 'bg-blue-50 border-blue-500 shadow-blue-100'
                 : 'bg-white border-transparent hover:border-gray-200'
             }`}
             whileTap={{ scale: 0.96 }}
           >
-            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
+            <div className={`w-14 h-14 md:w-20 md:h-20 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 ${
               selectedMethod === 'CASH' ? 'bg-blue-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600'
             }`}>
-              <Banknote className="w-10 h-10" />
+              <Banknote className="w-8 h-8 md:w-10 md:h-10" />
             </div>
-            <div className="text-center">
-              <span className="font-bold text-2xl text-blue-950 block mb-1">Efectivo</span>
-              <span className="text-gray-500 font-medium">Pagar en la caja</span>
+            <div className="text-left md:text-center">
+              <span className="font-bold text-xl md:text-2xl text-blue-950 block mb-1">Efectivo</span>
+              <span className="text-sm md:text-base text-gray-500 font-medium">Pagar en la caja</span>
             </div>
           </motion.button>
 
@@ -270,7 +306,7 @@ export function PaymentScreen() {
             onClick={() => {
               setSelectedMethod('MERCADOPAGO')
             }}
-            className={`p-6 rounded-[2rem] flex flex-col items-center gap-4 transition-all border-2 shadow-sm ${
+            className={`p-4 md:p-6 rounded-[1.5rem] md:rounded-[2rem] flex flex-row md:flex-col items-center gap-4 md:gap-4 transition-all border-2 shadow-sm ${
               !isOnline ? 'opacity-50 cursor-not-allowed grayscale' : ''
             } ${
               selectedMethod === 'MERCADOPAGO' || selectedMethod === 'STRIPE'
@@ -279,14 +315,14 @@ export function PaymentScreen() {
             }`}
             whileTap={isOnline ? { scale: 0.96 } : {}}
           >
-            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center ${
+            <div className={`w-14 h-14 md:w-20 md:h-20 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 ${
               selectedMethod === 'MERCADOPAGO' || selectedMethod === 'STRIPE' ? 'bg-blue-500 text-white shadow-lg' : 'bg-gray-100 text-gray-600'
             }`}>
-              <CreditCard className="w-10 h-10" />
+              <CreditCard className="w-8 h-8 md:w-10 md:h-10" />
             </div>
-            <div className="text-center">
-              <span className="font-bold text-2xl text-blue-950 block mb-1">Digital</span>
-              <span className="text-gray-500 font-medium">Tarjeta o Código QR</span>
+            <div className="text-left md:text-center">
+              <span className="font-bold text-xl md:text-2xl text-blue-950 block mb-1">Digital</span>
+              <span className="text-sm md:text-base text-gray-500 font-medium">Tarjeta o Código QR</span>
             </div>
           </motion.button>
         </div>
@@ -297,16 +333,16 @@ export function PaymentScreen() {
               initial={{ opacity: 0, height: 0, y: -20 }}
               animate={{ opacity: 1, height: 'auto', y: 0 }}
               exit={{ opacity: 0, height: 0, y: -20 }}
-              className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100"
+              className="bg-white rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-8 shadow-sm border border-gray-100"
             >
-              <h3 className="font-bold text-2xl mb-6 text-blue-950">¿Con cuánto pagas?</h3>
+              <h3 className="font-bold text-xl md:text-2xl mb-4 md:mb-6 text-blue-950">¿Con cuánto pagas?</h3>
               
-              <div className="grid grid-cols-5 gap-3 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3 mb-4 md:mb-6">
                 {quickCashAmounts.map(amount => (
                   <motion.button
                     key={amount}
                     onClick={() => handleCashInput(amount.toString())}
-                    className="py-4 bg-gray-50 rounded-2xl font-bold text-xl hover:bg-blue-50 hover:text-blue-600 border border-gray-200 transition-colors shadow-sm text-gray-700"
+                    className="py-3 md:py-4 bg-gray-50 rounded-xl md:rounded-2xl font-bold text-base md:text-xl hover:bg-blue-50 hover:text-blue-600 border border-gray-200 transition-colors shadow-sm text-gray-700"
                     whileTap={{ scale: 0.9 }}
                   >
                     ${amount}
@@ -315,13 +351,13 @@ export function PaymentScreen() {
               </div>
 
               <div className="relative">
-                <span className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-400">$</span>
+                <span className="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 text-xl md:text-2xl font-bold text-gray-400">$</span>
                 <input
                   type="number"
                   placeholder="0.00"
                   value={cashReceived}
                   onChange={(e) => handleCashInput(e.target.value)}
-                  className="w-full pl-12 pr-6 py-5 text-3xl font-black bg-gray-50 rounded-[2rem] border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-inner text-blue-950"
+                  className="w-full pl-10 md:pl-12 pr-4 md:pr-6 py-4 md:py-5 text-2xl md:text-3xl font-black bg-gray-50 rounded-xl md:rounded-[2rem] border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all shadow-inner text-blue-950"
                 />
               </div>
 
@@ -331,10 +367,10 @@ export function PaymentScreen() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="mt-6 flex justify-between items-center p-6 bg-blue-50 rounded-2xl border border-blue-100"
+                    className="mt-4 md:mt-6 flex flex-col md:flex-row justify-between items-center p-4 md:p-6 bg-blue-50 rounded-xl md:rounded-2xl border border-blue-100 gap-2 md:gap-0 text-center md:text-left"
                   >
-                    <span className="text-xl font-bold text-blue-900">Cambio a entregar:</span>
-                    <span className={`text-3xl font-black ${change >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    <span className="text-lg md:text-xl font-bold text-blue-900">Cambio a entregar:</span>
+                    <span className={`text-2xl md:text-3xl font-black ${change >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                       {formatPrice(change)}
                     </span>
                   </motion.div>
@@ -345,6 +381,8 @@ export function PaymentScreen() {
         </AnimatePresence>
       </div>
 
+      <CustomerLoyaltyModal isOpen={showLoyaltyModal} onClose={() => setShowLoyaltyModal(false)} />
+      
       {/* Floating Bottom Bar */}
       <AnimatePresence>
         {selectedMethod && (
@@ -353,12 +391,12 @@ export function PaymentScreen() {
             animate={{ y: 0 }}
             exit={{ y: 150 }}
             transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
-            className="absolute bottom-0 left-0 right-0 bg-white p-8 border-t-2 border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex justify-between items-center z-50 rounded-t-[3rem]"
+            className="absolute bottom-0 left-0 right-0 bg-white p-4 md:p-8 border-t-2 border-gray-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0 z-50 rounded-t-3xl md:rounded-t-[3rem]"
           >
-            <div>
-              <span className="text-2xl text-gray-500 font-medium block">Total a pagar</span>
+            <div className="w-full text-center md:text-left md:w-auto">
+              <span className="text-sm md:text-2xl text-gray-500 font-medium block">Total a pagar</span>
               <motion.span 
-                className="text-5xl font-black text-blue-950"
+                className="text-4xl md:text-5xl font-black text-blue-950"
                 key={subtotal}
                 initial={{ scale: 1.1 }}
                 animate={{ scale: 1 }}
@@ -370,12 +408,12 @@ export function PaymentScreen() {
             <motion.button
               onClick={handlePayment}
               disabled={!canPay || processing}
-              className="bg-green-500 text-white px-10 py-6 rounded-[2rem] text-2xl font-bold flex items-center gap-4 shadow-xl shadow-green-200 hover:bg-green-600 transition-colors disabled:opacity-50 disabled:shadow-none min-w-[250px] justify-center"
+              className="bg-green-500 text-white px-6 py-4 md:px-10 md:py-6 rounded-2xl md:rounded-[2rem] text-xl md:text-2xl font-bold flex items-center gap-3 md:gap-4 shadow-xl shadow-green-200 hover:bg-green-600 transition-colors disabled:opacity-50 disabled:shadow-none w-full md:min-w-[250px] justify-center"
               whileTap={!(!canPay || processing) ? { scale: 0.96 } : {}}
             >
               {processing ? (
                 <>
-                  <Loader2 className="w-8 h-8 animate-spin" />
+                  <Loader2 className="w-6 h-6 md:w-8 md:h-8 animate-spin" />
                   Procesando...
                 </>
               ) : (
