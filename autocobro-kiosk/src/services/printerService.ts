@@ -162,37 +162,62 @@ export function buildReceipt(data: ReceiptData): Uint8Array {
   return new Uint8Array(concat(...commandsList))
 }
 
+async function getUSBDevice(filters: { vendorId: number }[]) {
+  if (typeof navigator === 'undefined' || !('usb' in navigator)) return null;
+
+  // Primero intentamos con dispositivos ya autorizados para evitar el error de "user gesture"
+  const pairedDevices = await navigator.usb.getDevices();
+  const alreadyPaired = pairedDevices.find(d => 
+    filters.some(f => f.vendorId === d.vendorId)
+  );
+
+  if (alreadyPaired) return alreadyPaired;
+
+  // Si no hay ninguno emparejado, solicitamos permiso (ESTO REQUERIRÁ GESTO DE USUARIO)
+  try {
+    return await (navigator as any).usb.requestDevice({ filters });
+  } catch (err) {
+    console.warn('User did not select a device or browser blocked request:', err);
+    return null;
+  }
+}
+
 export async function printReceipt(data: ReceiptData): Promise<void> {
   const receipt = buildReceipt(data)
   
   if (typeof navigator !== 'undefined' && 'usb' in navigator) {
-    try {
-      const device = await (navigator as any).usb.requestDevice({
-        filters: [
-          { vendorId: 0x0416 },
-          { vendorId: 0x04B8 },
-          { vendorId: 0x0519 },
-          { vendorId: 0x0483 },
-        ]
-      })
-      
-      await device.open()
-      await device.selectConfiguration(1)
-      await device.claimInterface(0)
-      
-      const endpoint = device.configuration.interfaces[0].alternate.endpoints.find((e: any) => e.direction === 'out')
-      
-      if (endpoint) {
-        await device.transferOut(endpoint.endpointNumber, receipt)
+    const filters = [
+      { vendorId: 0x0416 },
+      { vendorId: 0x04B8 },
+      { vendorId: 0x0519 },
+      { vendorId: 0x0483 },
+    ];
+
+    const device = await getUSBDevice(filters);
+    
+    if (device) {
+      try {
+        await device.open()
+        await device.selectConfiguration(1)
+        await device.claimInterface(0)
+        
+        const endpoint = device.configuration.interfaces[0].alternate.endpoints.find((e: any) => e.direction === 'out')
+        
+        if (endpoint) {
+          await device.transferOut(endpoint.endpointNumber, receipt)
+        }
+        
+        await device.close()
+        return
+      } catch (err) {
+        console.warn('USB transfer failed:', err)
       }
-      
-      await device.close()
-      return
-    } catch (err) {
-      console.warn('USB printing not available:', err)
+    } else {
+      console.warn('USB printer not found or access denied (gesture required?)');
     }
   }
   
+  // Fallback a ventana de impresión si USB no está disponible
   const blob = new Blob([new Uint8Array(receipt)], { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
   
@@ -210,24 +235,24 @@ export async function openCashDrawer(): Promise<void> {
   const command = new Uint8Array(commands.OPEN_CASH_DRAWER)
   
   if (typeof navigator !== 'undefined' && 'usb' in navigator) {
-    try {
-      const device = await (navigator as any).usb.requestDevice({
-        filters: [{ vendorId: 0x0416 }]
-      })
-      
-      await device.open()
-      await device.selectConfiguration(1)
-      await device.claimInterface(0)
-      
-      const endpoint = device.configuration.interfaces[0].alternate.endpoints.find((e: any) => e.direction === 'out')
-      
-      if (endpoint) {
-        await device.transferOut(endpoint.endpointNumber, command)
+    const device = await getUSBDevice([{ vendorId: 0x0416 }]);
+    
+    if (device) {
+      try {
+        await device.open()
+        await device.selectConfiguration(1)
+        await device.claimInterface(0)
+        
+        const endpoint = device.configuration.interfaces[0].alternate.endpoints.find((e: any) => e.direction === 'out')
+        
+        if (endpoint) {
+          await device.transferOut(endpoint.endpointNumber, command)
+        }
+        
+        await device.close()
+      } catch (err) {
+        console.warn('USB cash drawer transfer failed:', err)
       }
-      
-      await device.close()
-    } catch (err) {
-      console.warn('USB cash drawer not available:', err)
     }
   }
 }

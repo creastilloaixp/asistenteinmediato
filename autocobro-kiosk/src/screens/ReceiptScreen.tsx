@@ -99,7 +99,7 @@ export function ReceiptScreen() {
             
             <h1 className="text-4xl md:text-6xl font-black text-blue-950 mb-4">¡Pago Exitoso!</h1>
             <p className="text-3xl md:text-5xl font-black text-green-500 mb-8 md:mb-12">
-              ${currentTransaction.total.toFixed(2)} <span className="text-base md:text-2xl font-bold text-gray-400">MXN</span>
+              ${Number(currentTransaction.total).toFixed(2)} <span className="text-base md:text-2xl font-bold text-gray-400">MXN</span>
             </p>
             
             <div className='bg-gray-50 border border-gray-100 p-6 md:p-8 rounded-3xl mb-8 md:mb-16 space-y-3 md:space-y-4 w-full shadow-sm'>
