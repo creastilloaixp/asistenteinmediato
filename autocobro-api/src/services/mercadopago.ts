@@ -147,9 +147,9 @@ export async function createInStoreQROrder(options: CreateOrderOptions): Promise
  * Genera un voucher que el cliente puede pagar en tiendas OXXO
  * Vencimiento: 3 días (configurable hasta 30 días máximo)
  */
-export async function createOXXOPayment(options: CreateQROptions): Promise<MercadoPagoQRPayment> {
+export async function createOXXOPayment(options: CreateQROptions & { email?: string }): Promise<MercadoPagoQRPayment> {
   const accessToken = getAccessToken();
-  const { amount, description, externalReference, notificationUrl } = options;
+  const { amount, description, externalReference, notificationUrl, email } = options;
 
   const expirationDate = new Date();
   expirationDate.setDate(expirationDate.getDate() + 3); // 3 días de vigencia
@@ -161,12 +161,14 @@ export async function createOXXOPayment(options: CreateQROptions): Promise<Merca
     external_reference: externalReference,
     notification_url: notificationUrl,
     payer: {
-      email: 'cliente@ejemplo.com',
+      email: email || 'cliente@ejemplo.com',
     },
     date_of_expiration: expirationDate.toISOString(),
   };
 
   const idempotencyKey = `oxxo-${externalReference}-${Date.now()}`;
+  
+  console.log(`[MercadoPago] Creando pago OXXO para: ${externalReference}`);
   
   const response = await fetch(`${MERCADOPAGO_API_URL}/v1/payments`, {
     method: 'POST',
@@ -178,29 +180,34 @@ export async function createOXXOPayment(options: CreateQROptions): Promise<Merca
     body: JSON.stringify(body),
   });
 
+  const data = await response.json() as any;
+
   if (!response.ok) {
-    const error = await response.json() as { message?: string; cause?: Array<{ description?: string }> };
-    throw new Error(`Mercado Pago error: ${error.message || error.cause?.[0]?.description || 'Unknown error'}`);
+    console.error('[MercadoPago] Error en API:', JSON.stringify(data, null, 2));
+    throw new Error(`Mercado Pago error: ${data.message || data.cause?.[0]?.description || 'Unknown error'}`);
   }
 
-  const data = await response.json() as {
-    id: number;
-    status: string;
-    external_reference: string;
-    transaction_details?: {
-      payment_reference: string;
-    };
-    barcode?: {
-      content: string;
-    };
-  };
+  // LOG de depuración para Producción (ayuda a ver dónde viene el código)
+  console.log('[MercadoPago] Pago Creado con Éxito. Respuesta:', JSON.stringify({
+    id: data.id,
+    status: data.status,
+    barcode: data.barcode,
+    details: data.transaction_details,
+    poi: data.point_of_interaction ? 'presente' : 'ausente'
+  }, null, 2));
+
+  // Búsqueda profunda del código (OXXO Pay usa varias rutas según el servidor)
+  const code = 
+    data.barcode?.content || 
+    data.transaction_details?.payment_reference || 
+    data.point_of_interaction?.transaction_data?.barcode?.content ||
+    data.point_of_interaction?.transaction_data?.payment_reference;
 
   return {
     id: data.id.toString(),
     status: data.status as 'pending' | 'approved',
-    // Captura flexible del código (OXXO Pay usa payment_reference o barcode)
-    qrCode: data.barcode?.content || data.transaction_details?.payment_reference, 
-    qrCodeBase64: data.transaction_details?.payment_reference || data.barcode?.content,
+    qrCode: code, 
+    qrCodeBase64: data.transaction_details?.payment_reference || code,
     externalReference: data.external_reference,
   };
 }
