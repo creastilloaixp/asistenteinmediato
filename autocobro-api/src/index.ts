@@ -27,6 +27,11 @@ const server = createServer(app);
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 4000;
 
+// Patch for BigInt serialization via JSON.stringify
+(BigInt.prototype as any).toJSON = function () {
+  return Number(this);
+};
+
 // Configuration - Better CORS support
 const envOrigins = process.env.FRONTEND_URLS ? process.env.FRONTEND_URLS.split(',').map(u => u.trim()) : [];
 const allowedOrigins = [
