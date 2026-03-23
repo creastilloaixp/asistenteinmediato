@@ -163,4 +163,118 @@ router.get('/status', requireStore, asyncHandler(async (req, res) => {
   });
 }));
 
+/**
+ * Webhook de Stripe para confirmar pagos
+ * POST /api/payments/stripe/webhook
+ */
+router.post('/stripe/webhook', express.raw({ type: 'application/json' }), asyncHandler(async (req, res) => {
+  const { constructWebhookEvent } = await import('../services/stripe.js');
+  const prisma = new PrismaClient();
+  
+  const sig = req.headers['stripe-signature'] as string;
+  
+  try {
+    const event = await constructWebhookEvent(req.body, sig);
+    
+    if (!event) {
+      res.status(400).send('Webhook signature verification failed');
+      return;
+    }
+    
+    switch (event.type) {
+      case 'payment_intent.succeeded': {
+        const paymentIntent = event.data.object as any;
+        const transactionId = paymentIntent.metadata?.transactionId;
+        
+        if (transactionId) {
+          await prisma.transaction.update({
+            where: { id: transactionId },
+            data: { status: TransactionStatus.COMPLETED },
+          });
+          
+          const transaction = await prisma.transaction.findUnique({
+            where: { id: transactionId },
+            include: { kiosk: true, items: true },
+          });
+          
+          if (transaction) {
+            wsService.broadcastToStore(transaction.storeId, 'TRANSACTION_COMPLETED' as any, {
+              transaction,
+            });
+            
+            await createActivityLog({
+              storeId: transaction.storeId,
+              type: 'TRANSACTION_COMPLETED',
+              action: `Pago con tarjeta completado`,
+              entityType: 'Transaction',
+              entityId: transaction.id,
+              details: { total: transaction.total, paymentMethod: 'CARD' },
+            });
+          }
+        }
+        break;
+      }
+      
+      case 'payment_intent.payment_failed': {
+        const paymentIntent = event.data.object as any;
+        const transactionId = paymentIntent.metadata?.transactionId;
+        
+        if (transactionId) {
+          await prisma.transaction.update({
+            where: { id: transactionId },
+            data: { status: TransactionStatus.CANCELLED },
+          });
+        }
+        break;
+      }
+    }
+    
+    res.json({ received: true });
+  } catch (err) {
+    console.error('Stripe webhook error:', err);
+    res.status(400).send(`Webhook Error`);
+  } finally {
+    await prisma.$disconnect();
+  }
+}));
+
+/**
+ * Confirma manualmente un pago con tarjeta (para testing)
+ * POST /api/payments/stripe/confirm
+ */
+router.post('/stripe/confirm', requireStore, asyncHandler(async (req, res) => {
+  const prisma = new PrismaClient();
+  const { transactionId, paymentIntentId } = req.body;
+  
+  if (!transactionId) {
+    throw new HttpError('transactionId es requerido', 400);
+  }
+  
+  const transaction = await prisma.transaction.findUnique({
+    where: { id: transactionId },
+  });
+  
+  if (!transaction) {
+    throw new HttpError('Transacción no encontrada', 404);
+  }
+  
+  await prisma.transaction.update({
+    where: { id: transactionId },
+    data: { status: TransactionStatus.COMPLETED },
+  });
+  
+  await createActivityLog({
+    storeId: transaction.storeId,
+    type: 'TRANSACTION_COMPLETED',
+    action: `Pago con tarjeta completado (manual)`,
+    entityType: 'Transaction',
+    entityId: transaction.id,
+    details: { total: transaction.total, paymentMethod: 'CARD', paymentIntentId },
+  });
+  
+  await prisma.$disconnect();
+  
+  res.json({ success: true, data: { status: 'COMPLETED' } });
+}));
+
 export default router;

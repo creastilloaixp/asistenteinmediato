@@ -22,8 +22,10 @@ import terminalRoutes from './routes/terminal.js';
 import pushRoutes from './routes/pushNotifications.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authMiddleware } from './middleware/auth.js';
+import { loginLimiter, kioskLimiter } from './middleware/rateLimiter.js';
 import { setupWebSocket } from './services/websocket.js';
 import { initializePushNotifications } from './services/pushNotifications.js';
+import { logger } from './utils/logger.js';
 
 const app = express();
 const server = createServer(app);
@@ -58,14 +60,76 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
+/**
+ * Enhanced health check endpoint.
+ * Verifies database connectivity and required environment variables.
+ * Returns 200 if healthy, 503 if any check fails.
+ */
+app.get('/api/health', async (_, res) => {
+  try {
+    const startTime = Date.now();
+    const checks: Record<string, boolean> = {};
+
+    // Check PostgreSQL connectivity
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      checks.database = true;
+    } catch (dbError) {
+      checks.database = false;
+      logger.error('Health check: Database connectivity failed', {
+        error: dbError instanceof Error ? dbError.message : String(dbError),
+      });
+    }
+
+    // Check required environment variables
+    const requiredEnvVars = ['JWT_SECRET'];
+    const optionalEnvVars = ['STRIPE_SECRET_KEY', 'GEMINI_API_KEY'];
+
+    checks.envVars = requiredEnvVars.every((envVar) => !!process.env[envVar]);
+
+    if (!checks.envVars) {
+      const missing = requiredEnvVars.filter((v) => !process.env[v]);
+      logger.error('Health check: Missing required environment variables', {
+        missing,
+      });
+    }
+
+    // Check optional env vars
+    const availableOptional = optionalEnvVars.filter((v) => !!process.env[v]);
+
+    const responseTime = Date.now() - startTime;
+    const allChecksPassed = checks.database && checks.envVars;
+
+    const statusCode = allChecksPassed ? 200 : 503;
+
+    res.status(statusCode).json({
+      status: allChecksPassed ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      uptime: process.uptime(),
+      responseTime: `${responseTime}ms`,
+      checks,
+      features: {
+        stripeEnabled: !!process.env.STRIPE_SECRET_KEY,
+        geminiEnabled: !!process.env.GEMINI_API_KEY,
+      },
+    });
+  } catch (error) {
+    logger.error('Health check endpoint error', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      checks: { database: false, envVars: false },
+    });
+  }
 });
 
+// Apply rate limiting to auth endpoints
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/stores', storeRegistrationRoutes);
 app.use('/api/billing', billingRoutes);
@@ -74,6 +138,9 @@ app.use('/api/products', authMiddleware, productRoutes);
 app.use('/api/transactions', authMiddleware, transactionRoutes);
 app.use('/api/stores/manage', authMiddleware, storeRoutes);
 app.use('/api/payments', authMiddleware, paymentRoutes);
+// Apply rate limiting to kiosk endpoints
+app.use('/api/kiosks/sync', kioskLimiter);
+app.use('/api/kiosks/recommendations', kioskLimiter);
 app.use('/api/kiosks', kioskRoutes);
 app.use('/api/kiosk/transactions', kioskTransactionRoutes);
 app.use('/api/ai', aiRoutes);

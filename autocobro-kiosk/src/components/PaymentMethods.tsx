@@ -23,6 +23,8 @@ export interface PaymentData {
   paymentIntentId?: string;
   preferenceId?: string;
   initPoint?: string;
+  paymentId?: string;
+  externalReference?: string;
 }
 
 interface PaymentMethodsProps {
@@ -122,8 +124,10 @@ export function PaymentMethods({ total, onBack, onPaymentComplete, onError }: Pa
         const mpResult = await createMercadoPagoPayment();
         result = {
           provider: 'mercadopago',
-          qrCodeBase64: mpResult.qrCodeBase64 || mpResult.qrCode, // Usar qrCode si no hay base64
-          qrCode: mpResult.qrCode
+          qrCodeBase64: mpResult.qrCodeBase64 || mpResult.qrCode,
+          qrCode: mpResult.qrCode,
+          paymentId: mpResult.paymentId,
+          externalReference: mpResult.externalReference
         };
       } else {
         const stripeResult = await createStripePayment();
@@ -186,16 +190,15 @@ export function PaymentMethods({ total, onBack, onPaymentComplete, onError }: Pa
   if (paymentData && selectedProvider === 'mercadopago') {
     return (
       <MercadoPagoQRView 
-        qrCodeBase64={paymentData.qrCodeBase64}
-        qrCode={paymentData.qrCode}
+        paymentData={paymentData}
         amount={total}
         onBack={() => {
           setPaymentData(null);
           setSelectedProvider(null);
           setPaymentStatus(null);
         }}
-        onSimulate={handleSimulatePayment}
         status={paymentStatus}
+        onPaymentComplete={onPaymentComplete}
       />
     );
   }
@@ -302,15 +305,14 @@ export function PaymentMethods({ total, onBack, onPaymentComplete, onError }: Pa
 }
 
 interface MercadoPagoQRViewProps {
-  qrCodeBase64?: string;
-  qrCode?: string;
+  paymentData?: PaymentData;
   amount: number;
   onBack: () => void;
-  onSimulate: () => void;
   status: 'pending' | 'processing' | 'completed' | 'failed' | null;
+  onPaymentComplete: (paymentData: PaymentData, isFinalConfirmation: boolean) => void;
 }
 
-function MercadoPagoQRView({ qrCodeBase64, qrCode, amount, onBack, onSimulate, status }: MercadoPagoQRViewProps) {
+function MercadoPagoQRView({ paymentData, amount, onBack, status, onPaymentComplete }: MercadoPagoQRViewProps) {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -335,12 +337,12 @@ function MercadoPagoQRView({ qrCodeBase64, qrCode, amount, onBack, onSimulate, s
         <h2 className="text-2xl font-bold mb-2">Pagar en OXXO</h2>
         <p className="text-gray-500 mb-4">Presenta este código en cualquier tienda OXXO</p>
 
-        {(qrCode || qrCodeBase64) && (
+        {(paymentData?.qrCode || paymentData?.qrCodeBase64) && (
           <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-4 mb-4">
             <p className="text-xs text-gray-500 mb-2">Código de barras:</p>
             <div className="mt-4 flex items-center justify-center overflow-hidden">
               <Barcode 
-                value={qrCodeBase64 || qrCode || ''} 
+                value={paymentData?.qrCodeBase64 || paymentData?.qrCode || ''} 
                 format="CODE128" 
                 width={2} 
                 height={60} 
@@ -364,7 +366,15 @@ function MercadoPagoQRView({ qrCodeBase64, qrCode, amount, onBack, onSimulate, s
 
         {status === 'pending' && (
           <button
-            onClick={onSimulate}
+            onClick={() => {
+              onPaymentComplete({
+                provider: 'mercadopago',
+                qrCodeBase64: paymentData?.qrCodeBase64,
+                qrCode: paymentData?.qrCode,
+                paymentId: paymentData?.paymentId,
+                externalReference: paymentData?.externalReference
+              }, true);
+            }}
             className="w-full bg-green-500 text-white py-4 rounded-xl font-bold hover:bg-green-600 transition-colors"
           >
             Ya pagué en OXXO

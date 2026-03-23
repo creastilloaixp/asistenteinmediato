@@ -164,26 +164,96 @@ export function PaymentScreen() {
     }
   }
 
-  const handleDigitalPaymentComplete = (paymentData: PaymentData, isFinalConfirmation: boolean = false) => {
+  const handleDigitalPaymentComplete = async (paymentData: PaymentData, isFinalConfirmation: boolean = false) => {
     // Si no es confirmación final y tenemos datos para mostrar UI (QR o Formulario Stripe), solo retornamos
     if (!isFinalConfirmation && (paymentData.qrCodeBase64 || paymentData.qrCode || paymentData.clientSecret)) {
       return;
     }
 
-    setTransaction({
-      id: `DIGITAL-${Date.now()}`,
-      total,
-      paymentMethod: paymentData.provider.toUpperCase() as 'MERCADOPAGO' | 'STRIPE',
-      completedAt: new Date().toISOString(),
-      items: cart.map(item => ({
-        productName: item.product.name,
-        quantity: item.quantity,
-        unitPrice: item.product.price,
+    // Crear la transacción en el servidor (quedará PENDING para OXXO)
+    try {
+      const items = cart.map(item => ({
+        productId: item.product.id,
+        quantity: item.quantity
       }))
-    })
 
-    toast.success('Pago procesado correctamente', { icon: '✅' })
-    setScreen('receipt')
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/kiosk/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Key': deviceKey || ''
+        },
+        body: JSON.stringify({
+          items,
+          paymentMethod: paymentData.provider.toUpperCase()
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al crear la transacción')
+      }
+
+      const { data } = await response.json()
+      
+      // Para OXXO/Mercado Pago: NO auto-confirmar, queda PENDING
+      // Para Stripe: auto-confirmar porque el pago ya fue procesado por Stripe
+      if (paymentData.provider === 'stripe') {
+        const completeResponse = await fetch(`${import.meta.env.VITE_API_URL}/kiosk/transactions/${data.transaction.id}/complete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Device-Key': deviceKey || ''
+          },
+          body: JSON.stringify({
+            paymentReference: paymentData.paymentIntentId || `DIGITAL-${Date.now()}`,
+          })
+        })
+
+        if (!completeResponse.ok) {
+          throw new Error('Error al confirmar el pago')
+        }
+      }
+      
+      setTransaction({
+        id: data.transaction.id,
+        total,
+        paymentMethod: paymentData.provider.toUpperCase() as 'MERCADOPAGO' | 'STRIPE',
+        completedAt: paymentData.provider === 'stripe' ? new Date().toISOString() : undefined,
+        pendingAt: paymentData.provider === 'mercadopago' ? new Date().toISOString() : undefined,
+        items: cart.map(item => ({
+          productName: item.product.name,
+          quantity: item.quantity,
+          unitPrice: item.product.price,
+        }))
+      })
+
+      if (paymentData.provider === 'mercadopago') {
+        toast.warning('Pago registrado - Pendiente de confirmación', { 
+          icon: '⏳',
+          description: 'El pago se confirmará cuando Mercado Pago verifique el pago en OXXO'
+        })
+      } else {
+        toast.success('Pago procesado correctamente', { icon: '✅' })
+      }
+      
+      setScreen('receipt')
+
+    } catch (error) {
+      console.error('Error confirming digital payment:', error)
+      toast.error('Error al procesar el pago')
+      setTransaction({
+        id: `DIGITAL-${Date.now()}`,
+        total,
+        paymentMethod: paymentData.provider.toUpperCase() as 'MERCADOPAGO' | 'STRIPE',
+        completedAt: new Date().toISOString(),
+        items: cart.map(item => ({
+          productName: item.product.name,
+          quantity: item.quantity,
+          unitPrice: item.product.price,
+        }))
+      })
+      setScreen('receipt')
+    }
   }
 
   const handleDigitalPaymentError = (error: string) => {

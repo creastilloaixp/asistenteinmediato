@@ -24,6 +24,7 @@ export interface Transaction {
   cashReceived?: number
   paymentReference?: string
   completedAt?: string
+  pendingAt?: string
 }
 
 interface KioskState {

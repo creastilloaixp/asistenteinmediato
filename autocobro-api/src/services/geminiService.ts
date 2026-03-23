@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logger } from '../utils/logger.js';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -62,7 +63,7 @@ Reglas:
   try {
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-    
+
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       const recommendations = JSON.parse(jsonMatch[0]);
@@ -73,7 +74,11 @@ Reglas:
     }
     return generateFallbackRecommendations(cartProducts, availableProducts);
   } catch (error) {
-    console.error('Gemini API error:', error);
+    logger.geminiError('Error calling Gemini recommendations API', error, {
+      endpoint: 'POST /recommendations',
+      cartProductsCount: cartProducts.length,
+      availableProductsCount: availableProducts.length,
+    });
     return generateFallbackRecommendations(cartProducts, availableProducts);
   }
 }
@@ -180,7 +185,11 @@ Responde en español de manera útil y concisa. Si no puedes responder, explica 
     const result = await model.generateContent(prompt);
     return result.response.text();
   } catch (error) {
-    console.error('Gemini chat error:', error);
+    logger.geminiError('Error calling Gemini chat API', error, {
+      endpoint: 'POST /chat',
+      messagesCount: messages.length,
+      hasStats: !!storeStats,
+    });
     return 'Hubo un error al procesar tu mensaje. Por favor intenta de nuevo.';
   }
 }

@@ -22,7 +22,10 @@ export class GeminiLiveService {
         // Enviar configuración inicial (modelo 2.5 y tools)
         this.ws?.send(JSON.stringify({
           setup: {
-            model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
+            model: "models/gemini-2.0-flash-exp",
+            generationConfig: {
+              responseModalities: ["AUDIO"]
+            },
             systemInstruction: {
               parts: [{ text: "Eres Elisa, asistente virtual de AutoCobro. Responde brevemente (máximo 1 oración) con voz muy amable. Usa tus herramientas para agregar o quitar cosas del carrito si el usuario te lo pide." }]
             },

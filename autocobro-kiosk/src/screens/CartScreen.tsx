@@ -2,6 +2,7 @@ import { Minus, Plus, Trash2, ShoppingBag, QrCode } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useKioskStore } from '../stores/kioskStore'
 import { toast } from 'sonner'
+import { AISuggestions } from '../components/AISuggestions'
 
 export function CartScreen() {
   const { cart, updateQuantity, removeFromCart, setScreen } = useKioskStore()
@@ -141,6 +142,9 @@ export function CartScreen() {
             </motion.div>
           ))}
         </AnimatePresence>
+
+        {/* Sugerencias de IA */}
+        <AISuggestions />
       </div>
 
       <motion.div 

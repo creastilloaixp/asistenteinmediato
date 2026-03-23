@@ -43,10 +43,9 @@ export const aiService = {
       const response = await result.response;
       const text = response.text().trim();
       
-      // Limpiar posible formato markdown si Gemini lo incluye
-      const jsonStr = text.startsWith('```json') 
-        ? text.substring(7, text.length - 3) 
-        : text;
+      // Limpiador de JSON más robusto para Gemini
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : text;
 
       return JSON.parse(jsonStr);
     } catch (error) {
@@ -89,9 +88,9 @@ export const aiService = {
       const response = await result.response;
       const responseText = response.text().trim();
       
-      const jsonStr = responseText.startsWith('```json') 
-        ? responseText.substring(7, responseText.length - 3) 
-        : responseText;
+      // Limpiador de JSON robusto para objetos
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
 
       return JSON.parse(jsonStr);
     } catch (error) {

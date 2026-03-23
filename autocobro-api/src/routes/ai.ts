@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler, HttpError } from '../middleware/errorHandler.js';
 import { requireStore } from '../middleware/auth.js';
 import { generateRecommendations, generateChatResponse, type ChatMessage } from '../services/geminiService.js';
+import { logger } from '../utils/logger.js';
 
 const router = Router();
 
@@ -31,25 +32,37 @@ router.post('/recommendations', asyncHandler(async (req, res) => {
     });
   }
 
-  const recommendations = await generateRecommendations(
-    cartProducts.map((p: any) => ({
-      id: p.productId,
-      name: p.productName || p.name,
-      price: Number(p.price),
-      category: p.category
-    })),
-    availableProducts.map(p => ({
-      id: p.id,
-      name: p.name,
-      price: Number(p.price),
-      category: p.category || undefined
-    }))
-  );
+  try {
+    const recommendations = await generateRecommendations(
+      cartProducts.map((p: any) => ({
+        id: p.productId,
+        name: p.productName || p.name,
+        price: Number(p.price),
+        category: p.category
+      })),
+      availableProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: Number(p.price),
+        category: p.category || undefined
+      }))
+    );
 
-  res.json({
-    success: true,
-    data: { recommendations }
-  });
+    res.json({
+      success: true,
+      data: { recommendations }
+    });
+  } catch (error) {
+    logger.geminiError('Error generating AI recommendations via admin endpoint', error, {
+      endpoint: 'POST /ai/recommendations',
+      storeId,
+      cartProductsCount: cartProducts?.length || 0,
+    });
+    res.json({
+      success: true,
+      data: { recommendations: [], message: 'Error generando recomendaciones' }
+    });
+  }
 }));
 
 router.post('/chat', requireStore, asyncHandler(async (req, res) => {

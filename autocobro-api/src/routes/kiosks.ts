@@ -4,6 +4,7 @@ import { asyncHandler, HttpError } from '../middleware/errorHandler.js';
 import { requireStore, authMiddleware } from '../middleware/auth.js';
 import { generateRecommendations } from '../services/geminiService.js';
 import { HealthService } from '../services/healthService.js';
+import { logger } from '../utils/logger.js';
 const createHealthService = (prisma: PrismaClient) => new HealthService(prisma);
 import { KioskHealthMetrics } from '../services/healthService.js';
 
@@ -471,76 +472,13 @@ router.post('/recommendations', asyncHandler(async (req, res) => {
       data: recommendations
     });
   } catch (error) {
-    console.error('Error generando recomendaciones de IA:', error);
+    logger.geminiError('Error generating kiosk recommendations', error, {
+      endpoint: 'POST /kiosks/recommendations',
+      storeId: kiosk.storeId,
+      deviceKey: kiosk.deviceKey,
+      cartProductsCount: cartProducts?.length || 0,
+    });
     // Silent fail if AI goes down (we don't want to crash the kiosk checkout)
-    res.json({
-      success: true,
-      data: { recommendations: [], message: 'AI temporalmente no disponible' }
-    });
-  }
-}));
-
-
-
-/**
- * Solicita a Gemini recomendaciones basadas en los productos actuales en el carrito
- * POST /api/kiosks/recommendations
- */
-router.post('/recommendations', asyncHandler(async (req, res) => {
-  const prisma = req.prisma as PrismaClient;
-  const { cartProducts } = req.body;
-  const deviceKey = req.headers['x-device-key'] as string;
-
-  if (!deviceKey) {
-    throw new HttpError('X-Device-Key requerido', 401);
-  }
-
-  const kiosk = await prisma.kioskDevice.findUnique({
-    where: { deviceKey },
-  });
-
-  if (!kiosk) {
-    throw new HttpError('Kiosco inválido', 401);
-  }
-
-  if (!Array.isArray(cartProducts) || cartProducts.length === 0) {
-    return res.json({ success: true, data: { recommendations: [], message: 'Carrito vacío' } });
-  }
-
-  const availableProducts = await prisma.product.findMany({
-    where: { storeId: kiosk.storeId, active: true },
-    select: { id: true, name: true, price: true, category: true }
-  });
-
-  if (availableProducts.length === 0) {
-    return res.json({
-      success: true,
-      data: { recommendations: [], message: 'No hay productos disponibles' }
-    });
-  }
-
-  try {
-    const recommendations = await generateRecommendations(
-      cartProducts.map((p: any) => ({
-        id: p.productId,
-        name: p.productName || p.name,
-        price: Number(p.price),
-        category: p.category
-      })),
-      availableProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        price: Number(p.price),
-        category: p.category || undefined
-      }))
-    );
-
-    res.json({
-      success: true,
-      data: recommendations
-    });
-  } catch (error) {
-    console.error('Error generando recomendaciones de IA:', error);
     res.json({
       success: true,
       data: { recommendations: [], message: 'AI temporalmente no disponible' }

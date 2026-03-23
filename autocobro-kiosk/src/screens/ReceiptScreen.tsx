@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckCircle, Printer } from 'lucide-react'
+import { CheckCircle, Printer, Clock, AlertCircle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useKioskStore } from '../stores/kioskStore'
 import { printReceipt, openCashDrawer } from '../services/printerService'
@@ -92,40 +92,80 @@ export function ReceiptScreen() {
               initial={{ scale: 0 }}
               animate={{ scale: [0, 1.2, 1] }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-green-50 flex items-center justify-center mb-6 md:mb-10 shadow-inner border-[8px] md:border-[12px] border-green-100"
+              className={`w-24 h-24 md:w-32 md:h-32 rounded-full flex items-center justify-center mb-6 md:mb-10 shadow-inner border-[8px] md:border-[12px] ${
+                currentTransaction.pendingAt 
+                  ? 'bg-yellow-50 border-yellow-100' 
+                  : 'bg-green-50 border-green-100'
+              }`}
             >
-              <CheckCircle size={48} className="text-green-500 md:w-16 md:h-16" strokeWidth={4} />
+              {currentTransaction.pendingAt ? (
+                <Clock size={48} className="text-yellow-500 md:w-16 md:h-16" strokeWidth={4} />
+              ) : (
+                <CheckCircle size={48} className="text-green-500 md:w-16 md:h-16" strokeWidth={4} />
+              )}
             </motion.div>
             
-            <h1 className="text-4xl md:text-6xl font-black text-blue-950 mb-4">¡Pago Exitoso!</h1>
-            <p className="text-3xl md:text-5xl font-black text-green-500 mb-8 md:mb-12">
-              ${Number(currentTransaction.total).toFixed(2)} <span className="text-base md:text-2xl font-bold text-gray-400">MXN</span>
-            </p>
+            <h1 className={`text-4xl md:text-6xl font-black mb-4 ${
+              currentTransaction.pendingAt ? 'text-yellow-600' : 'text-blue-950'
+            }`}>
+              {currentTransaction.pendingAt ? '¡Pago Pendiente!' : '¡Pago Exitoso!'}
+            </h1>
             
-            <div className='bg-gray-50 border border-gray-100 p-6 md:p-8 rounded-3xl mb-8 md:mb-16 space-y-3 md:space-y-4 w-full shadow-sm'>
-              <p className='text-lg md:text-xl text-gray-700 font-bold flex items-center justify-center gap-2 md:gap-3'>
-                <Printer size={20} className="text-gray-400 md:w-6 md:h-6" />
-                Imprimiendo ticket...
-              </p>
-              <p className='text-sm md:text-lg text-gray-500'>Toma tu ticket de la impresora situada debajo de la pantalla.</p>
-              <div className='w-full h-2 md:h-3 bg-gray-200 rounded-full overflow-hidden mt-4 md:mt-6'>
-                <motion.div 
-                  initial={{x: '-100%'}} 
-                  animate={{x: '100%'}} 
-                  transition={{duration: 2, repeat: Infinity, ease: 'linear'}} 
-                  className="w-1/2 h-full bg-blue-900 rounded-full"
-                ></motion.div>
+            <p className="text-3xl md:text-5xl font-black mb-8 md:mb-12">
+              <span className={currentTransaction.pendingAt ? 'text-yellow-500' : 'text-green-500'}>
+                ${Number(currentTransaction.total).toFixed(2)}
+              </span>
+              <span className="text-base md:text-2xl font-bold text-gray-400"> MXN</span>
+            </p>
+
+            {currentTransaction.pendingAt ? (
+              <div className='bg-yellow-50 border border-yellow-200 p-6 md:p-8 rounded-3xl mb-8 md:mb-16 space-y-3 md:space-y-4 w-full shadow-sm'>
+                <p className='text-lg md:text-xl text-yellow-800 font-bold flex items-center justify-center gap-2 md:gap-3'>
+                  <AlertCircle size={20} className="md:w-6 md:h-6" />
+                  Pendiente de confirmación
+                </p>
+                <p className='text-sm md:text-lg text-yellow-700'>
+                  Tu pago en OXXO está siendo procesado. Puede tardar hasta 72 horas en confirmarse.
+                </p>
+                <p className='text-sm md:text-lg text-yellow-700 font-medium'>
+                  ID de transacción: {currentTransaction.id.slice(0, 8)}...
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className='bg-gray-50 border border-gray-100 p-6 md:p-8 rounded-3xl mb-8 md:mb-16 space-y-3 md:space-y-4 w-full shadow-sm'>
+                <p className='text-lg md:text-xl text-gray-700 font-bold flex items-center justify-center gap-2 md:gap-3'>
+                  <Printer size={20} className="text-gray-400 md:w-6 md:h-6" />
+                  Imprimiendo ticket...
+                </p>
+                <p className='text-sm md:text-lg text-gray-500'>Toma tu ticket de la impresora situada debajo de la pantalla.</p>
+                <div className='w-full h-2 md:h-3 bg-gray-200 rounded-full overflow-hidden mt-4 md:mt-6'>
+                  <motion.div 
+                    initial={{x: '-100%'}} 
+                    animate={{x: '100%'}} 
+                    transition={{duration: 2, repeat: Infinity, ease: 'linear'}} 
+                    className="w-1/2 h-full bg-blue-900 rounded-full"
+                  ></motion.div>
+                </div>
+              </div>
+            )}
 
             <motion.button 
               onClick={handleNewSale} 
-              className="bg-blue-950 text-white hover:bg-blue-900 rounded-2xl md:rounded-[2rem] font-bold transition-colors w-full py-5 md:py-6 text-xl md:text-2xl shadow-xl flex items-center justify-center"
+              className={`text-white rounded-2xl md:rounded-[2rem] font-bold transition-colors w-full py-5 md:py-6 text-xl md:text-2xl shadow-xl flex items-center justify-center ${
+                currentTransaction.pendingAt 
+                  ? 'bg-yellow-500 hover:bg-yellow-600' 
+                  : 'bg-blue-950 hover:bg-blue-900'
+              }`}
               whileTap={{ scale: 0.96 }}
             >
               Finalizar Compra
             </motion.button>
-            <p className="text-gray-400 mt-4 md:mt-6 text-sm md:text-lg">La pantalla se reiniciará en unos segundos...</p>
+            <p className="text-gray-400 mt-4 md:mt-6 text-sm md:text-lg">
+              {currentTransaction.pendingAt 
+                ? 'Un empleado confirmará tu pago manualmente' 
+                : 'La pantalla se reiniciará en unos segundos...'
+              }
+            </p>
           </motion.div>
         )}
       </AnimatePresence>
