@@ -26,11 +26,11 @@ export function HomeScreen() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="relative w-full h-full overflow-hidden bg-gray-50 font-sans"
+      className="relative w-full min-h-screen overflow-y-auto overflow-x-hidden bg-gray-50 font-sans"
     >
       {/* ================= FONDOS (CAPA BASE) ================= */}
       {/* Fondo Azul Oscuro Superior (Cálido y tecnológico) */}
-      <div className="absolute top-0 left-0 w-full h-[62%] bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 rounded-b-[4rem] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-0">
+      <div className="absolute top-0 left-0 w-full h-[62vh] bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 rounded-b-[4rem] shadow-[0_10px_30px_rgba(0,0,0,0.2)] z-0">
         {/* Subtle tech glow effect */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[50%] bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none"></div>
       </div>
@@ -38,21 +38,21 @@ export function HomeScreen() {
 
 
       {/* ================= CONTENIDO (CAPA SUPERIOR) ================= */}
-      <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-8 px-8">
+      <div className="relative z-10 w-full min-h-screen flex flex-col pt-8 md:pt-14 pb-8 px-4 md:px-8">
         
         {/* 1. Header / Logo */}
-        <div className="flex flex-col items-center justify-center mb-10 mt-4">
+        <div className="flex flex-col items-center justify-center mb-6 md:mb-10 mt-2 md:mt-4 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end">
-              <span className="text-white font-black text-[2.5rem] leading-[0.9] tracking-tight">TIENDA</span>
-              <span className="text-white font-black text-[2.5rem] leading-[0.9] tracking-tight">EXPRESS</span>
+              <span className="text-white font-black text-3xl md:text-[2.5rem] leading-[0.9] tracking-tight">TIENDA</span>
+              <span className="text-white font-black text-3xl md:text-[2.5rem] leading-[0.9] tracking-tight">EXPRESS</span>
             </div>
-            <div className="w-14 h-14 border-[7px] border-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)]"></div>
+            <div className="w-10 h-10 md:w-14 md:h-14 border-[4px] md:border-[7px] border-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)]"></div>
           </div>
         </div>
 
         {/* 2. Textos de Bienvenida */}
-        <div className="text-center mb-6 md:mb-10">
+        <div className="text-center mb-6 md:mb-10 shrink-0">
           <motion.h1 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -73,14 +73,14 @@ export function HomeScreen() {
 
         {/* 3. Tarjetas Principales (Blancas, sobrelapando el borde) */}
         {/* Usamos un margen inferior negativo o flex-grow para posicionar correctamente */}
-        <div className="flex flex-col md:grid md:grid-cols-2 gap-4 md:gap-6 w-full mb-6 md:mb-8 flex-1 min-h-0">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6 w-full mb-6 md:mb-8 shrink-0 justify-center">
           <motion.button 
             onClick={() => setScreen('search')}
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2, type: "spring" }}
             whileTap={{ scale: 0.95 }}
-            className="bg-white rounded-[2rem] p-4 md:p-8 flex flex-row md:flex-col items-center justify-start md:justify-center gap-4 md:gap-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] border-2 border-transparent hover:border-emerald-100 transition-all group flex-1 md:aspect-[4/3]"
+            className="bg-white rounded-[2rem] p-4 md:p-8 flex flex-row md:flex-col items-center justify-start md:justify-center gap-4 md:gap-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] border-2 border-transparent hover:border-emerald-100 transition-all group w-full md:w-1/2"
           >
             <div className="bg-slate-50 p-4 md:p-6 rounded-3xl group-hover:bg-emerald-50 transition-colors shrink-0">
               <ScanLine className="w-8 h-8 md:w-16 md:h-16 text-slate-800 group-hover:text-emerald-600 transition-colors" strokeWidth={1.5} />
@@ -96,7 +96,7 @@ export function HomeScreen() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, type: "spring" }}
             whileTap={{ scale: 0.95 }}
-            className="bg-white rounded-[2rem] p-4 md:p-8 flex flex-row md:flex-col items-center justify-start md:justify-center gap-4 md:gap-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] border-2 border-transparent hover:border-emerald-100 transition-all group flex-1 md:aspect-[4/3]"
+            className="bg-white rounded-[2rem] p-4 md:p-8 flex flex-row md:flex-col items-center justify-start md:justify-center gap-4 md:gap-6 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] border-2 border-transparent hover:border-emerald-100 transition-all group w-full md:w-1/2"
           >
             <div className="bg-slate-50 p-4 md:p-6 rounded-3xl group-hover:bg-emerald-50 transition-colors shrink-0">
               <Search className="w-8 h-8 md:w-16 md:h-16 text-slate-800 group-hover:text-emerald-600 transition-colors" strokeWidth={1.5} />
@@ -121,10 +121,10 @@ export function HomeScreen() {
                 key={catName}
                 onClick={() => setScreen('search')}
                 whileTap={{ scale: 0.92 }}
-                className="bg-emerald-500 rounded-2xl md:rounded-3xl aspect-[16/9] md:aspect-square flex flex-row md:flex-col items-center justify-center gap-2 md:gap-3 p-2 md:p-3 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 transition-colors border border-emerald-400/50"
+                className="bg-emerald-500 rounded-2xl md:rounded-3xl h-24 md:h-40 flex flex-row md:flex-col items-center justify-center gap-2 md:gap-3 p-2 md:p-3 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 transition-colors border border-emerald-400/50 w-full"
               >
-                <Icon className="w-5 h-5 md:w-[38px] md:h-[38px] text-white shrink-0" strokeWidth={2} />
-                <span className="text-white font-black text-[10px] sm:text-xs text-center tracking-wide line-clamp-1">{catName.toUpperCase()}</span>
+                <Icon className="w-6 h-6 md:w-10 md:h-10 text-white shrink-0" strokeWidth={2} />
+                <span className="text-white font-black text-[11px] sm:text-sm text-center tracking-wide line-clamp-1">{catName.toUpperCase()}</span>
               </motion.button>
             );
           })}
@@ -137,22 +137,23 @@ export function HomeScreen() {
                 key={`empty-${i}`}
                 onClick={() => setScreen('search')}
                 whileTap={{ scale: 0.92 }}
-                className="bg-emerald-500 rounded-2xl md:rounded-3xl aspect-[16/9] md:aspect-square flex flex-row md:flex-col items-center justify-center gap-2 md:gap-3 p-2 md:p-3 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 transition-colors border border-emerald-400/50"
+                className="bg-emerald-500 rounded-2xl md:rounded-3xl h-24 md:h-40 flex flex-row md:flex-col items-center justify-center gap-2 md:gap-3 p-2 md:p-3 shadow-lg shadow-emerald-500/30 hover:bg-emerald-400 transition-colors border border-emerald-400/50 w-full"
               >
-                <Icon className="w-5 h-5 md:w-[38px] md:h-[38px] text-white shrink-0" strokeWidth={2} />
-                <span className="text-white font-black text-xs text-center tracking-wide">VER TODOS</span>
+                <Icon className="w-6 h-6 md:w-10 md:h-10 text-white shrink-0" strokeWidth={2} />
+                <span className="text-white font-black text-[11px] sm:text-sm text-center tracking-wide">VER TODOS</span>
               </motion.button>
              )
           })}
         </motion.div>
 
         {/* 5. Paginación Dots */}
-        <div className="flex justify-center gap-3 my-auto">
+        <div className="flex justify-center gap-3 my-4 shrink-0">
           <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></div>
           <div className="w-3 h-3 rounded-full bg-gray-300"></div>
         </div>
 
         {/* 6. Bottom Bar Verde */}
+        {/* mt-auto pushes this to the bottom IF the screen is taller than the content */}
         <motion.div 
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
