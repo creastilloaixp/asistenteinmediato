@@ -163,11 +163,13 @@ export function buildReceipt(data: ReceiptData): Uint8Array {
 }
 
 async function getUSBDevice(filters: { vendorId: number }[]) {
-  if (typeof navigator === 'undefined' || !('usb' in navigator)) return null;
+  if (typeof navigator === 'undefined' || !('usb' in (navigator as any))) return null;
 
+  const usb = (navigator as any).usb;
+  
   // Primero intentamos con dispositivos ya autorizados para evitar el error de "user gesture"
-  const pairedDevices = await navigator.usb.getDevices();
-  const alreadyPaired = pairedDevices.find(d => 
+  const pairedDevices = await usb.getDevices() as any[];
+  const alreadyPaired = pairedDevices.find((d: any) => 
     filters.some(f => f.vendorId === d.vendorId)
   );
 
