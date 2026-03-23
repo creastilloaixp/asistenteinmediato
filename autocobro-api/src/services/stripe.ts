@@ -24,7 +24,7 @@ import https from 'https';
 let stripeClient: Stripe | null = null;
 
 function getStripeClient(): Stripe {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
   
   if (!secretKey) {
     throw new Error('STRIPE_SECRET_KEY no está configurado');
@@ -34,7 +34,7 @@ function getStripeClient(): Stripe {
     stripeClient = new Stripe(secretKey, {
       apiVersion: '2025-02-24.acacia',
       typescript: true,
-      httpAgent: new https.Agent({ family: 4 }), // Force IPv4 exclusively for Stripe SDK outbound traffic
+      httpClient: Stripe.createNodeHttpClient(new https.Agent({ family: 4 })),
     });
   }
 
@@ -232,8 +232,8 @@ export async function refundPayment(
  */
 export function isStripeConfigured(): boolean {
   return !!(
-    process.env.STRIPE_SECRET_KEY &&
-    process.env.STRIPE_SECRET_KEY !== 'your_stripe_secret_key'
+    process.env.STRIPE_SECRET_KEY?.trim() &&
+    process.env.STRIPE_SECRET_KEY.trim() !== 'your_stripe_secret_key'
   );
 }
 
