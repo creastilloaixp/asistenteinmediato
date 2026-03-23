@@ -188,8 +188,10 @@ export class GeminiLiveService {
          bytes[i] = binary.charCodeAt(i);
      }
      
-     if (!this.playbackContext) {
+     if (!this.playbackContext || this.playbackContext.state === 'closed') {
          this.playbackContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+     } else if (this.playbackContext.state === 'suspended') {
+         this.playbackContext.resume();
      }
      
      const int16 = new Int16Array(bytes.buffer);
@@ -219,6 +221,8 @@ export class GeminiLiveService {
     this.ws = null;
     this.stream = null;
     this.workletNode = null;
+    this.playbackContext = null;
+    this.audioContext = null;
     this.onStateChange?.('idle');
   }
 }
