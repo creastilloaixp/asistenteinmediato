@@ -198,8 +198,9 @@ export async function createOXXOPayment(options: CreateQROptions): Promise<Merca
   return {
     id: data.id.toString(),
     status: data.status as 'pending' | 'approved',
-    qrCode: data.barcode?.content, // Código de barras para OXXO
-    qrCodeBase64: data.transaction_details?.payment_reference,
+    // Captura flexible del código (OXXO Pay usa payment_reference o barcode)
+    qrCode: data.barcode?.content || data.transaction_details?.payment_reference, 
+    qrCodeBase64: data.transaction_details?.payment_reference || data.barcode?.content,
     externalReference: data.external_reference,
   };
 }

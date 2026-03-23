@@ -103,7 +103,7 @@ router.post('/', asyncHandler(async (req, res) => {
 router.post('/:id/complete', asyncHandler(async (req, res) => {
   const prisma = req.prisma;
   const { id } = req.params;
-  const { paymentReference, cashReceived, changeGiven } = req.body;
+  const { paymentReference, cashReceived, changeGiven, customerId } = req.body;
   const storeId = (req as any).storeId;
 
   const transaction = await prisma.transaction.findFirst({
@@ -167,12 +167,29 @@ router.post('/:id/complete', asyncHandler(async (req, res) => {
     data: {
       status: TransactionStatus.COMPLETED,
       paymentReference,
+      customerId,
       cashReceived: cashReceived ? Number(cashReceived) : null,
       changeGiven: changeGiven ? Number(changeGiven) : null,
       completedAt: new Date(),
     },
     include: { items: true },
   });
+
+  // Asignar Puntos de Lealtad (1 punto por cada $10 gastados)
+  if (customerId) {
+    const pointsEarned = Math.floor(Number(updated.total) / 10);
+    if (pointsEarned > 0) {
+      await prisma.customer.update({
+        where: { id: customerId },
+        data: {
+          loyaltyPoints: { increment: pointsEarned },
+          totalSpent: { increment: updated.total },
+          visitCount: { increment: 1 },
+          lastVisit: new Date()
+        }
+      }).catch(err => console.error('Error actualizando puntos del cliente:', err));
+    }
+  }
 
   await createActivityLog({
     storeId,
@@ -243,7 +260,7 @@ router.post('/mercadopago/create', asyncHandler(async (req, res) => {
     amount: Number(amount),
     description: description || 'Pago AutoCobro',
     externalReference: transactionId,
-    notificationUrl: `https://autocobro.com/api/payments/mercadopago/webhook`,
+    notificationUrl: `https://autocobro-api-z368.onrender.com/api/payments/mercadopago/webhook`,
   });
 
   const transaction = await prisma.transaction.create({
