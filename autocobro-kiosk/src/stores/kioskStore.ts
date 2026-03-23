@@ -37,6 +37,7 @@ interface KioskState {
   currentScreen: 'home' | 'search' | 'cart' | 'payment' | 'receipt'
   isInitialized: boolean
   lastSync: Date | null
+  customer: { id: string, name: string, phone: string, loyaltyPoints: number, isNew: boolean } | null
 
   setDeviceKey: (key: string) => void
   setKioskInfo: (info: { kioskId: string; storeName: string; storeId: string }) => void
@@ -47,6 +48,7 @@ interface KioskState {
   clearCart: () => void
   setScreen: (screen: KioskState['currentScreen']) => void
   setTransaction: (transaction: Transaction | null) => void
+  setCustomer: (customer: KioskState['customer']) => void
   setInitialized: (value: boolean) => void
   setLastSync: (date: Date) => void
   initialize: () => Promise<void>
@@ -64,6 +66,9 @@ export const useKioskStore = create<KioskState>((set, get) => ({
   currentScreen: 'home',
   isInitialized: false,
   lastSync: null,
+  customer: null,
+
+  setCustomer: (customer) => set({ customer }),
 
   setDeviceKey: (key) => set({ deviceKey: key }),
 
@@ -108,7 +113,7 @@ export const useKioskStore = create<KioskState>((set, get) => ({
     })
   },
 
-  clearCart: () => set({ cart: [], currentTransaction: null }),
+  clearCart: () => set({ cart: [], currentTransaction: null, customer: null }),
 
   setScreen: (screen) => set({ currentScreen: screen }),
 
