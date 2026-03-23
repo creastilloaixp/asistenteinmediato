@@ -5,6 +5,9 @@ export class GeminiLiveService {
   private audioContext: AudioContext | null = null;
   private stream: MediaStream | null = null;
   private playbackContext: AudioContext | null = null;
+  private videoElement: HTMLVideoElement | null = null;
+  private canvasElement: HTMLCanvasElement | null = null;
+  private visionInterval: any = null;
   
   public onTranscript?: (text: string) => void;
   public onAction?: (action: 'add' | 'remove' | 'checkout', productId: string) => void;
@@ -309,8 +312,15 @@ export class GeminiLiveService {
         }));
       }, 2000);
 
-    } catch (e) {
-      console.warn('[GeminiLive] Vision disabled or NO camera found:', e);
+    } catch (e: any) {
+      console.error('[GeminiLive] Error starting vision:', e);
+      if (e.name === 'NotAllowedError') {
+        this.onError?.('Permiso de cámara denegado. Actívalo en el navegador para que Elisa pueda verte.');
+      } else if (e.name === 'NotFoundError') {
+        this.onError?.('No se encontró ninguna cámara conectada al kiosco.');
+      } else {
+        this.onError?.('Error al conectar con la cámara para la Visión de Elisa.');
+      }
     }
   }
 
