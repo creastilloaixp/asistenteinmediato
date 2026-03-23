@@ -11,6 +11,7 @@ import { HardwareStatus } from './components/HardwareStatus'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Toaster, toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
+import { ElisaAssistant } from './components/ElisaAssistant'
 
 function App() {
   const { currentScreen, initialize, isInitialized, storeName, products, addToCart } = useKioskStore()
@@ -149,6 +150,9 @@ function App() {
           <CurrentScreen />
         </motion.div>
       </AnimatePresence>
+
+      {/* Elisa - Asistente de Voz */}
+      <ElisaAssistant />
     </div>
   )
 }
