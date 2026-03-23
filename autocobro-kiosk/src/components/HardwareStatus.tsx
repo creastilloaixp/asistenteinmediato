@@ -169,7 +169,7 @@ export function HardwareStatus() {
 
   if (!metrics) {
     return (
-      <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 z-50">
+      <div className="fixed bottom-[110px] md:bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 z-50">
         <div className="flex items-center gap-2 text-gray-500">
           <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
           <span className="text-sm">Inicializando monitor...</span>
@@ -186,7 +186,7 @@ export function HardwareStatus() {
   }[status];
 
   return (
-    <div className={`fixed bottom-4 right-4 z-50 ${isExpanded ? 'w-80' : 'w-auto'}`}>
+    <div className={`fixed bottom-[110px] md:bottom-4 right-4 z-50 ${isExpanded ? 'w-80' : 'w-auto'}`}>
       <div className={`bg-white rounded-lg shadow-lg border-2 ${statusConfig.border} overflow-hidden transition-all duration-300`}>
         <button
           onClick={() => setIsExpanded(!isExpanded)}
