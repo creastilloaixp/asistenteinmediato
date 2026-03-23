@@ -78,13 +78,13 @@ export function ReceiptScreen() {
       initial={{ opacity: 0 }} 
       animate={{ opacity: 1 }} 
       exit={{ opacity: 0 }} 
-      className="flex-grow flex flex-col items-center justify-center p-10 bg-white text-center h-full"
+      className="flex-grow flex flex-col items-center justify-center p-6 md:p-10 bg-white text-center h-full min-h-screen"
     >
       <AnimatePresence mode='wait'>
         {loading ? (
           <motion.div key="loading" className='flex flex-col items-center gap-6' exit={{opacity: 0, scale: 0.9}}>
-            <div className="w-24 h-24 border-8 border-gray-100 border-t-green-500 rounded-full animate-spin"></div>
-            <p className='text-2xl font-bold text-gray-600'>Procesando tu pago...</p>
+            <div className="w-16 h-16 md:w-24 md:h-24 border-6 md:border-8 border-gray-100 border-t-green-500 rounded-full animate-spin"></div>
+            <p className='text-xl md:text-2xl font-bold text-gray-600'>Procesando tu pago...</p>
           </motion.div>
         ) : (
           <motion.div key="success" initial={{opacity:0, scale: 0.8}} animate={{opacity: 1, scale: 1}} className='flex flex-col items-center w-full max-w-lg'>
@@ -92,23 +92,23 @@ export function ReceiptScreen() {
               initial={{ scale: 0 }}
               animate={{ scale: [0, 1.2, 1] }}
               transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              className="w-32 h-32 rounded-full bg-green-50 flex items-center justify-center mb-10 shadow-inner border-[12px] border-green-100"
+              className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-green-50 flex items-center justify-center mb-6 md:mb-10 shadow-inner border-[8px] md:border-[12px] border-green-100"
             >
-              <CheckCircle size={64} className="text-green-500" strokeWidth={4} />
+              <CheckCircle size={48} className="text-green-500 md:w-16 md:h-16" strokeWidth={4} />
             </motion.div>
             
-            <h1 className="text-6xl font-black text-blue-950 mb-4">¡Pago Exitoso!</h1>
-            <p className="text-5xl font-black text-green-500 mb-12">
-              ${currentTransaction.total.toFixed(2)} <span className="text-2xl font-bold text-gray-400">MXN</span>
+            <h1 className="text-4xl md:text-6xl font-black text-blue-950 mb-4">¡Pago Exitoso!</h1>
+            <p className="text-3xl md:text-5xl font-black text-green-500 mb-8 md:mb-12">
+              ${currentTransaction.total.toFixed(2)} <span className="text-base md:text-2xl font-bold text-gray-400">MXN</span>
             </p>
             
-            <div className='bg-gray-50 border border-gray-100 p-8 rounded-3xl mb-16 space-y-4 w-full shadow-sm'>
-              <p className='text-xl text-gray-700 font-bold flex items-center justify-center gap-3'>
-                <Printer className="text-gray-400" />
+            <div className='bg-gray-50 border border-gray-100 p-6 md:p-8 rounded-3xl mb-8 md:mb-16 space-y-3 md:space-y-4 w-full shadow-sm'>
+              <p className='text-lg md:text-xl text-gray-700 font-bold flex items-center justify-center gap-2 md:gap-3'>
+                <Printer size={20} className="text-gray-400 md:w-6 md:h-6" />
                 Imprimiendo ticket...
               </p>
-              <p className='text-lg text-gray-500'>Toma tu ticket de la impresora situada debajo de la pantalla.</p>
-              <div className='w-full h-3 bg-gray-200 rounded-full overflow-hidden mt-6'>
+              <p className='text-sm md:text-lg text-gray-500'>Toma tu ticket de la impresora situada debajo de la pantalla.</p>
+              <div className='w-full h-2 md:h-3 bg-gray-200 rounded-full overflow-hidden mt-4 md:mt-6'>
                 <motion.div 
                   initial={{x: '-100%'}} 
                   animate={{x: '100%'}} 
@@ -120,12 +120,12 @@ export function ReceiptScreen() {
 
             <motion.button 
               onClick={handleNewSale} 
-              className="bg-blue-950 text-white hover:bg-blue-900 rounded-[2rem] font-bold transition-colors w-full py-6 text-2xl shadow-xl flex items-center justify-center"
+              className="bg-blue-950 text-white hover:bg-blue-900 rounded-2xl md:rounded-[2rem] font-bold transition-colors w-full py-5 md:py-6 text-xl md:text-2xl shadow-xl flex items-center justify-center"
               whileTap={{ scale: 0.96 }}
             >
               Finalizar Compra
             </motion.button>
-            <p className="text-gray-400 mt-6 text-lg">La pantalla se reiniciará en unos segundos...</p>
+            <p className="text-gray-400 mt-4 md:mt-6 text-sm md:text-lg">La pantalla se reiniciará en unos segundos...</p>
           </motion.div>
         )}
       </AnimatePresence>
