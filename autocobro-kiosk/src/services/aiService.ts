@@ -1,29 +1,20 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY);
-
 export interface AISuggestion {
   productId: string;
   reason: string;
 }
 
+const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
 /**
  * Servicio de IA para el Kiosco
- * Utiliza Gemini para analizar el carrito y sugerir productos complementarios
+ * Utiliza OpenRouter (con modelo Gemini Flash) para analizar el carrito y sugerir productos complementarios
  */
 export const aiService = {
-  /**
-   * Obtiene sugerencias basadas en el contenido actual del carrito
-   * @param cartItems Nombres de los productos en el carrito
-   * @param allProducts Lista de todos los productos disponibles en la tienda (IDs y Nombres)
-   */
   async getSuggestions(cartItems: string[], allProducts: { id: string, name: string }[]): Promise<AISuggestion[]> {
-    if (!API_KEY || cartItems.length === 0) return [];
+    if (!OPENROUTER_API_KEY || cartItems.length === 0) return [];
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
       const prompt = `
         Eres un experto en ventas de una tienda de conveniencia (AutoCobro). 
         Analiza estos productos en el carrito del cliente: [${cartItems.join(', ')}].
@@ -39,11 +30,28 @@ export const aiService = {
         Si no hay productos complementarios lógicos, devuelve un array vacío [].
       `;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text().trim();
+      const response = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "HTTP-Referer": window.location.origin,
+          "X-Title": "Autocobro App"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-flash-1.5",
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Error en IA");
+      }
+
+      const data = await response.json();
+      const text = data.choices[0].message.content.trim();
       
-      // Limpiador de JSON más robusto para Gemini
       const jsonMatch = text.match(/\[[\s\S]*\]/);
       const jsonStr = jsonMatch ? jsonMatch[0] : text;
 
@@ -54,15 +62,10 @@ export const aiService = {
     }
   },
 
-  /**
-   * Procesa un comando de voz para entender la intención del cliente
-   */
   async parseVoiceCommand(text: string, products: { id: string, name: string }[]): Promise<{ action: 'add' | 'remove' | 'question' | 'none', productId?: string, response: string }> {
-    if (!API_KEY || !text) return { action: 'none', response: 'No te escuché bien, ¿puedes repetir?' };
+    if (!OPENROUTER_API_KEY || !text) return { action: 'none', response: 'No te escuché bien, ¿puedes repetir?' };
 
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
       const prompt = `
         Eres Elisa, la asistente inteligente del cajero AutoCobro. 
         El cliente dijo: "${text}".
@@ -84,11 +87,28 @@ export const aiService = {
         }
       `;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const responseText = response.text().trim();
+      const response = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "HTTP-Referer": window.location.origin,
+          "X-Title": "Autocobro App"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-flash-1.5",
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || "Error en IA");
+      }
+
+      const data = await response.json();
+      const responseText = data.choices[0].message.content.trim();
       
-      // Limpiador de JSON robusto para objetos
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
 
